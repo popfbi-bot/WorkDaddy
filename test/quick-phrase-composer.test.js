@@ -1,0 +1,310 @@
+'use strict';
+
+const test = require('node:test');
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const path = require('node:path');
+const vm = require('node:vm');
+
+const source = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'daemon.js'), 'utf8');
+const start = source.indexOf('async function sendStashToComposer(record) {');
+const end = source.indexOf('\n/**', start);
+assert.ok(start >= 0 && end > start);
+
+const busyStart = source.indexOf('function buildBusyExpr() {');
+const busyEnd = source.indexOf('\n/**', busyStart);
+assert.ok(busyStart >= 0 && busyEnd > busyStart);
+
+function evaluateBusy(elements) {
+  const context = {};
+  vm.runInNewContext(source.slice(busyStart, busyEnd), context);
+  return vm.runInNewContext(context.buildBusyExpr(), {
+    document: { querySelectorAll: () => elements },
+  });
+}
+
+test('AI busy detection ignores WorkDaddy controls but keeps official stop controls', () => {
+  const ownStop = {
+    closest: selector => selector === '.wbs-root' ? {} : null,
+    getBoundingClientRect: () => ({ width: 96, height: 32 }),
+  };
+  const officialStop = {
+    closest: () => null,
+    getBoundingClientRect: () => ({ width: 32, height: 32 }),
+  };
+  assert.equal(evaluateBusy([ownStop]), false);
+  assert.equal(evaluateBusy([officialStop]), true);
+});
+
+function harness(hasContent, failSelect = false, postClickHasContent = false) {
+  const calls = [];
+  let evaluations = 0;
+  let submitted = false;
+  const context = {
+    cdp: { connected: true },
+    log() {},
+    waitAiIdle: async () => true,
+    setTimeout: (callback) => callback(),
+    cdpSend: async (method, params) => {
+      calls.push({ method, params });
+      if (method === 'Runtime.evaluate') {
+        evaluations++;
+        const value = evaluations === 1 ? { ok: true }
+          : evaluations === 2 ? { ok: true, hasContent }
+          : params.expression.includes('composer-after-submit') ? { ok: true, hasContent: postClickHasContent || !submitted }
+          : { ok: true, x: 100, y: 100 };
+        return { result: { value } };
+      }
+      if (failSelect && params.commands?.includes('selectAll')) throw new Error('selection failed');
+      return {};
+    },
+    cdpMouseClick: async () => { submitted = true; calls.push({ method: 'submit' }); },
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  return { calls, send: (text) => context.sendStashToComposer({ content: { text, items: [] } }) };
+}
+
+test('quick phrase rejects a click when the composer still contains text', async () => {
+  const { send } = harness(false, false, true);
+  await assert.rejects(send('replacement'), /输入框仍有内容|未确认发送/);
+});
+
+test('quick phrase replaces a draft using a renderer edit command without macOS menu shortcuts', async () => {
+  const { calls, send } = harness(true);
+  assert.equal((await send('replacement')).sent, true);
+  const inputs = calls.filter(({ method }) => method.startsWith('Input.') || method === 'submit');
+  assert.deepEqual(Array.from(inputs[0].params.commands || []), ['selectAll']);
+  assert.equal(inputs[0].params.type, 'rawKeyDown');
+  assert.equal(inputs[0].params.modifiers || 0, 0, 'must not invoke Cmd+A through native menus');
+  assert.equal(inputs[0].params.nativeVirtualKeyCode, undefined);
+  const deletion = inputs.findIndex(({ params }) => params?.key === 'Backspace' && params.type === 'keyDown');
+  const insertion = inputs.findIndex(({ method }) => method === 'Input.insertText');
+  assert.ok(deletion > 0 && insertion > deletion, 'select, delete, then insert');
+  for (const { params } of inputs.filter(({ params }) => params?.key === 'Backspace')) {
+    assert.notEqual(params.nativeVirtualKeyCode, 8, 'Windows Backspace is macOS C, not Delete');
+  }
+  assert.equal(inputs[insertion].params.text, 'replacement');
+  assert.equal(inputs.at(-1).method, 'submit');
+});
+
+test('empty composer skips clearing and multiline phrases retain Shift+Enter', async () => {
+  const { calls, send } = harness(false);
+  await send('first\nsecond');
+  assert.equal(calls.some(({ params }) => params?.commands || params?.key === 'Backspace'), false);
+  assert.deepEqual(calls.filter(({ method }) => method === 'Input.insertText').map(({ params }) => params.text), ['first', 'second']);
+  const enter = calls.filter(({ params }) => params?.key === 'Enter');
+  assert.deepEqual(enter.map(({ params }) => [params.type, params.modifiers]), [['keyDown', 8], ['keyUp', 8]]);
+});
+
+test('failed selection aborts before deleting, inserting or submitting', async () => {
+  const { calls, send } = harness(true, true);
+  await assert.rejects(send('replacement'), /selection failed/);
+  assert.equal(calls.some(({ method, params }) => method === 'submit' || method === 'Input.insertText' || params?.key === 'Backspace'), false);
+});
+
+function guardedComposerHarness({ draft = '', attachment = false, textarea = false } = {}) {
+  const calls = [];
+  const editor = {
+    tagName: textarea ? 'TEXTAREA' : 'DIV',
+    value: textarea ? draft : undefined,
+    innerText: 'Ask WorkBuddy anything\u200b' + draft,
+    focus() {}, scrollIntoView() {},
+    closest: selector => selector.includes('.cr-input-box') ? {} : null,
+    getBoundingClientRect: () => ({ width: 400, height: 80, bottom: 400 }),
+    querySelector: () => attachment ? {} : null,
+    cloneNode() {
+      const clone = { textContent: this.innerText };
+      clone.querySelectorAll = () => [{ remove: () => { clone.textContent = draft; } }];
+      return clone;
+    },
+  };
+  const dom = { document: { querySelector: () => null, querySelectorAll: selector => {
+    if (selector.includes('[contenteditable') && selector.includes('textarea')) return [editor];
+    if (selector.includes('textarea')) return textarea ? [editor] : [];
+    if (selector.includes('[contenteditable')) return textarea ? [] : [editor];
+    return [editor];
+  } }, window: { getSelection: () => null }, getComputedStyle: () => ({ display: 'block', visibility: 'visible' }) };
+  const context = { cdp: { connected: true }, log() {}, waitAiIdle: async () => true, setTimeout: fn => fn(),
+    cdpSend: async (method, params) => {
+      calls.push(method);
+      if (method !== 'Runtime.evaluate') return {};
+      // Execute both real composer expressions; only the final send-button lookup is stubbed.
+      const value = params.expression.includes('official-send-button') ? { ok: true, x: 1, y: 1 }
+        : vm.runInNewContext(params.expression, dom);
+      return { result: { value } };
+    }, cdpMouseClick: async () => calls.push('submit'),
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  return { calls, send: () => context.sendStashToComposer({ requireEmpty: true, content: { text: '1+1=', items: [] } }) };
+}
+
+test('automation sends from an empty Slate editor containing a visible placeholder', async () => {
+  const h = guardedComposerHarness();
+  assert.equal((await h.send()).sent, true);
+  assert.ok(h.calls.includes('Input.insertText'));
+  const submit = h.calls.indexOf('submit');
+  assert.ok(submit >= 0);
+  assert.equal(h.calls.filter(method => method === 'submit').length, 1);
+  assert.ok(h.calls.slice(submit + 1).includes('Runtime.evaluate'), 'must confirm the composer cleared after submitting');
+  assert.ok(!h.calls.includes('Input.dispatchKeyEvent'), 'placeholder must not trigger draft deletion');
+});
+
+test('automation sends from the modern textarea composer after model selection', async () => {
+  const h = guardedComposerHarness({ textarea: true });
+  assert.equal((await h.send()).sent, true);
+  assert.ok(h.calls.includes('Input.insertText'));
+  assert.equal(h.calls.filter(method => method === 'submit').length, 1);
+});
+
+test('automation still rejects real drafts and attachment-only editors before input', async () => {
+  for (const options of [{ draft: 'my unsent draft' }, { attachment: true }]) {
+    const h = guardedComposerHarness(options);
+    await assert.rejects(h.send(), /会话输入框非空/);
+    assert.ok(!h.calls.some(method => method.startsWith('Input.') || method === 'submit'));
+  }
+});
+
+function delayedButtonHarness({ enableAfter = 3, cancelAfter = Infinity, disabledBy = 'property', probeCost = 0, scoped = false, missing = false, stop = false } = {}) {
+  const calls = [];
+  let probes = 0, evaluations = 0, guardChecks = 0, clock = 0;
+  let submitted = false;
+  const waits = [], probeTimes = [];
+  const button = {
+    tagName: 'BUTTON',
+    get disabled() { return disabledBy === 'property' && probes < enableAfter; },
+    hasAttribute: name => name === 'disabled' && disabledBy === 'attribute' && probes < enableAfter,
+    getAttribute: name => name === 'aria-disabled' && disabledBy === 'aria' && probes < enableAfter ? 'true' : null,
+    classList: { contains: name => name === 'cr-send-button--stop' && stop },
+    closest: () => null,
+    getBoundingClientRect: () => ({ x: 10, y: 10, width: 32, height: 32, bottom: 42 }),
+    scrollIntoView() {},
+  };
+  button.parentElement = { children: [button] };
+  const box = { querySelectorAll: () => missing ? [] : [button] };
+  const context = { cdp: { connected: true }, log() {}, waitAiIdle: async () => true, Date: { now: () => clock }, setTimeout: (fn, ms) => { waits.push(ms); clock += ms; fn(); },
+    cdpSend: async (method, params) => {
+      calls.push(method);
+      if (method !== 'Runtime.evaluate') return {};
+      evaluations++;
+      if (evaluations <= 2) return { result: { value: { ok: true, hasContent: false } } };
+      if (params.expression.includes('composer-after-submit')) {
+        return { result: { value: { ok: true, hasContent: !submitted } } };
+      }
+      probes++; probeTimes.push(clock); clock += probeCost;
+      const foreign = { ...button, disabled: false, hasAttribute: () => false, getAttribute: () => null };
+      const dom = {
+        document: { activeElement: scoped ? { closest: () => box } : null, querySelector: selector => selector === '#codebuddy-agents-container' ? null : button, querySelectorAll: selector => selector === '.cr-input-box' ? [] : scoped ? [foreign] : [button] },
+        getComputedStyle: () => ({ display: 'block', visibility: 'visible', borderRadius: '50%' }),
+      };
+      return { result: { value: vm.runInNewContext(params.expression, dom) } };
+    }, cdpMouseClick: async () => { submitted = true; calls.push('submit'); },
+  };
+  vm.runInNewContext(source.slice(start, end), context);
+  return { calls, waits, probeTimes, elapsed: () => clock, probes: () => probes, send: () => context.sendStashToComposer({ requireEmpty: true, content: { text: '1+1=', items: [] }, guard: async () => { if (++guardChecks >= cancelAfter) throw Error('account changed'); } }) };
+}
+
+test('after an account switch, delayed official send readiness is awaited without retyping', async () => {
+  // The first account is already ready; the next account needs several UI updates.
+  for (const enableAfter of [1, 4]) {
+    const h = delayedButtonHarness({ enableAfter });
+    assert.equal((await h.send()).sent, true);
+    assert.equal(h.probes(), enableAfter);
+    assert.equal(h.calls.filter(m => m === 'Input.insertText').length, 1);
+    assert.equal(h.calls.filter(m => m === 'submit').length, 1);
+  }
+});
+
+test('a disabled official send button never falls through to an unrelated toolbar control', async () => {
+  const h = delayedButtonHarness({ enableAfter: Infinity });
+  await assert.rejects(h.send(), /发送按钮.*超时/);
+  assert.equal(h.elapsed(), 5000);
+  assert.ok(h.probes() > 1 && h.probes() <= 26);
+  assert.ok(h.waits.every(ms => ms === 200));
+  assert.equal(h.calls.filter(m => m === 'Input.insertText').length, 1);
+  assert.ok(!h.calls.includes('submit'));
+});
+
+test('changing account during readiness polling aborts without submitting or retyping', async () => {
+  const h = delayedButtonHarness({ enableAfter: Infinity, cancelAfter: 7 });
+  await assert.rejects(h.send(), /account changed/);
+  assert.equal(h.calls.filter(m => m === 'Input.insertText').length, 1);
+  assert.ok(!h.calls.includes('submit'));
+});
+
+test('disabled property, disabled attribute and aria-disabled all gate the official send button', async () => {
+  for (const disabledBy of ['property', 'attribute', 'aria']) {
+    const h = delayedButtonHarness({ enableAfter: 3, disabledBy, scoped: true });
+    await h.send();
+    assert.deepEqual(h.probeTimes, [0, 200, 400]);
+    assert.equal(h.calls.filter(m => m === 'submit').length, 1);
+  }
+});
+
+test('a missing or stopped current composer button never uses another composer send button', async () => {
+  for (const options of [{ missing: true }, { stop: true }]) {
+    const h = delayedButtonHarness({ scoped: true, enableAfter: 1, ...options });
+    await assert.rejects(h.send());
+    assert.equal(h.elapsed(), 5000);
+    assert.ok(!h.calls.includes('submit'));
+  }
+});
+
+test('the five-second deadline includes slow CDP probes and rejects a late ready response', async () => {
+  const h = delayedButtonHarness({ enableAfter: 3, probeCost: 1800 });
+  await assert.rejects(h.send());
+  assert.ok(!h.calls.includes('submit'));
+  assert.equal(h.calls.filter(m => m === 'Input.insertText').length, 1);
+  assert.ok(h.probeTimes.every(at => at < 5000));
+});
+
+test('native CodeBuddy send expression uses the square official button and fails closed if absent', () => {
+  const exprStart = source.indexOf('  const sendExpr = `', start) + '  const sendExpr = `'.length;
+  const exprEnd = source.indexOf('`;', exprStart);
+  const expression = vm.runInNewContext('`' + source.slice(exprStart,exprEnd) + '`');
+  const compat = require('../scripts/workbuddy-compat');
+  const native = {className:'_icon_fixture _active_fixture',closest:()=>null,
+    __reactProps$x:{onClick:function(){ editor.prepareBeforeSubmit?.();editor.flushPendingContentChange(); }},
+    getAttribute:()=>null,getBoundingClientRect:()=>({x:400,y:100,width:24,height:24,bottom:124}),scrollIntoView(){}};
+  const plugin={className:'wbs-explore-inline',closest:()=>({})};
+  const box={querySelectorAll:()=>[plugin,native]};
+  const dom={window:{__wbsWorkBuddyCompat:compat},document:{activeElement:{closest:()=>box},querySelector:()=>({})},getComputedStyle:()=>({display:'flex',visibility:'visible',pointerEvents:'auto'})};
+  let result=vm.runInNewContext(expression,dom);
+  assert.equal(result.ok,true);assert.equal(result.x,412);assert.equal(result.selector,'codebuddy-official-send-button');
+  native.className='_icon_fixture _disabled_fixture';
+  assert.equal(vm.runInNewContext(expression,dom).ok,false);
+  box.querySelectorAll=()=>[plugin];
+  result=vm.runInNewContext(expression,dom);assert.equal(result.ok,false);assert.equal(result.retryable,true);
+});
+
+test('CodeBuddy submits the native control once without compositor-dependent mouse ACKs', async () => {
+  for (const disabled of [false, true]) {
+    let evaluations = 0, submits = 0, mouseClicks = 0;
+    const button = { disabled, className: '_icon_fixture', getAttribute: () => null,
+      getBoundingClientRect: () => ({ width: 24, height: 24 }), click: () => submits++ };
+    const dom = { document: {}, window: { __wbsWorkBuddyCompat: { findCodeBuddySendButton: () => button } },
+      getComputedStyle: () => ({ display: 'flex', visibility: 'visible', pointerEvents: 'auto' }) };
+    const context = { cdp: { connected: true }, log() {}, waitAiIdle: async () => true, setTimeout: fn => fn(),
+      cdpSend: async (method, params) => {
+        if (method !== 'Runtime.evaluate') return {};
+        evaluations++;
+        if (params.expression.includes('codebuddy-submit-once')) return { result: { value: vm.runInNewContext(params.expression, dom) } };
+        return { result: { value: evaluations <= 2 ? { ok: true, hasContent: false } :
+          params.expression.includes('composer-after-submit') ? { ok: true, hasContent: false } :
+          { ok: true, x: 1180, y: 778, selector: 'codebuddy-official-send-button' } } };
+      },
+      cdpMouseClick: async () => mouseClicks++,
+    };
+    vm.runInNewContext(source.slice(start, end), context);
+    const sending = context.sendStashToComposer({ content: { text: 'fixture', items: [] } });
+    if (disabled) await assert.rejects(sending, /发送按钮/);
+    else assert.equal((await sending).sent, true);
+    assert.equal(submits, disabled ? 0 : 1);
+    assert.equal(mouseClicks, 0);
+  }
+});
+
+test('CodeBuddy quick phrase insertion has a non-blocking official adapter fallback', () => {
+  assert.match(source, /requestInsertContentBlocks\(\{contentBlocks:\[\],clearFirst:true\}\)/);
+  assert.match(source, /requestInsertContentBlocks\(\{contentBlocks:\[\{type:'text',text:/);
+  assert.match(source, /fire-and-forget/);
+});

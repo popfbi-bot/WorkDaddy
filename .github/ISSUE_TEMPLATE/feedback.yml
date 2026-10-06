@@ -1,0 +1,98 @@
+name: Bug 反馈 / 功能建议
+description: 提交 WorkDaddy 问题或功能建议，请填写客户端、版本和系统信息。
+body:
+  - type: dropdown
+    id: issue-type
+    attributes:
+      label: 问题类型
+      options:
+        - Bug 反馈
+        - 功能建议
+    validations:
+      required: true
+
+  - type: dropdown
+    id: client
+    attributes:
+      label: WorkBuddy 客户端
+      options:
+        - WorkBuddy（国内版）
+        - WorkBuddy AI（国际版）
+    validations:
+      required: true
+
+  - type: input
+    id: client-version
+    attributes:
+      label: WorkBuddy / WorkBuddy AI 版本号
+      description: 请填写上方所选客户端的完整版本号，不要只写“最新版”。
+      placeholder: 请从客户端的“关于”或版本信息页面复制
+    validations:
+      required: true
+
+  - type: input
+    id: workdaddy-version
+    attributes:
+      label: WorkDaddy / WorkDaddy AI 版本号
+      description: 可在 WorkDaddy 面板的“关于”页查看，请填写实际使用的版本号。
+      placeholder: 例如：1.2.8
+    validations:
+      required: true
+
+  - type: dropdown
+    id: operating-system
+    attributes:
+      label: 操作系统
+      options:
+        - Windows
+        - macOS
+        - Linux
+    validations:
+      required: true
+
+  - type: input
+    id: os-version
+    attributes:
+      label: 系统版本（选填）
+      placeholder: 例如：Windows 11 24H2、macOS 15.6、Ubuntu 24.04
+
+  - type: textarea
+    id: description
+    attributes:
+      label: 问题或建议描述
+      description: Bug 请说明实际现象和预期行为；功能建议请说明使用场景和期望实现的效果。
+      placeholder: 请具体描述遇到的问题或希望增加的功能
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: 复现步骤 / 截图（选填）
+      description: Bug 请尽量提供复现步骤、错误提示或截图；功能建议可补充示例。
+      placeholder: |
+        1. 打开……
+        2. 点击……
+        3. 出现……
+
+  - type: dropdown
+    id: agent-solution
+    attributes:
+      label: 是否有 Agent 提供的解决方案
+      description: 指 AI 编程助手或其他 Agent 对该问题提供的分析、修复方案或实现建议。
+      options:
+        - 有
+        - 没有（已尝试，但未获得方案）
+        - 未尝试使用 Agent
+    validations:
+      required: true
+
+  - type: textarea
+    id: agent-solution-details
+    attributes:
+      label: Agent 方案及验证结果
+      description: 若上方选择“有”，请附上方案摘要、相关代码或补丁，并说明是否已尝试、是否有效；没有方案可留空。
+      placeholder: |
+        使用的 Agent：
+        方案摘要：
+        验证结果（未尝试 / 有效 / 无效）：

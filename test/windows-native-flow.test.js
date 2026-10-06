@@ -1,0 +1,460 @@
+'use strict';
+
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const { EventEmitter } = require('node:events');
+const path = require('node:path');
+const test = require('node:test');
+const { launchWindowsInstaller } = require('../scripts/windows-installer-launch.js');
+const { nativeLaunchFailed, strictPowerShellLines } = require('../scripts/win-launcher.js');
+
+const root = path.join(__dirname, '..');
+const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
+
+test('Windows native launcher is the packaged user-level entry point', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+  const build = read('scripts/build-win-zip.sh');
+  const source = read('scripts/windows-native/main.go');
+
+  assert.match(installer, /Filename: "\{app\}\\WorkDaddyLauncher\.exe"/);
+  assert.doesNotMatch(installer, /launcher-hidden\.vbs|wscript\.exe/i);
+  assert.match(build, /WorkDaddyLauncher\.exe/);
+  assert.match(source, /TokenElevation/);
+  assert.match(source, /CreateMutexW/);
+  assert.match(source, /WBSWITCH_NATIVE_LAUNCHER/);
+  assert.match(source, /mbRetryCancel/);
+});
+
+test('Windows shortcuts use a versioned icon path to invalidate the shell icon cache', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+  assert.match(installer, /DestName: "\{#PackageName\}-\{#AppVersion\}\.ico"/);
+  assert.match(installer, /IconFilename: "\{app\}\\scripts\\\{#PackageName\}-\{#AppVersion\}\.ico"/);
+  assert.match(installer, /\[InstallDelete\][\s\S]*WorkDaddy-\*\.ico/);
+  assert.doesNotMatch(installer, /IconFilename: "\{app\}\\scripts\\WorkDaddy\.ico"/);
+});
+
+test('normal Windows startup does not use PowerShell de-elevation or CIM', () => {
+  const launcher = read('scripts/win-launcher.js');
+  const watchdog = read('scripts/watchdog.js');
+
+  assert.match(launcher, /async function nativeStartupMain/);
+  assert.match(launcher, /WBSWITCH_NATIVE_LAUNCHER/);
+  const nativeStart = launcher.slice(
+    launcher.indexOf('async function nativeStartupMain'),
+    launcher.indexOf('// ---------- legacy script entry ----------')
+  );
+  assert.doesNotMatch(nativeStart, /Get-CimInstance|windows-relaunch-standard|quitWorkBuddy/);
+  assert.doesNotMatch(watchdog, /Get-CimInstance|windows-process-boundary|pending\.json/);
+});
+
+test('native launcher retries inherited elevation with the verified desktop Explorer token', () => {
+  const source = read('scripts/windows-native/main.go');
+  const main = source.slice(source.indexOf('func main()'));
+
+  assert.match(source, /GetShellWindow/);
+  assert.match(source, /GetWindowThreadProcessId/);
+  assert.match(source, /CreateProcessWithTokenW/);
+  assert.match(source, /CreateEnvironmentBlock/);
+  assert.match(source, /DestroyEnvironmentBlock/);
+  assert.match(source, /createUnicodeEnvironment, environment/);
+  assert.match(source, /queryProcessPath\(shellPID\)/);
+  assert.match(source, /explorer\.exe/);
+  assert.match(source, /tokenIsElevated\(shellToken\)/);
+  assert.match(main, /--desktop-shell-relaunch/);
+  assert.ok(
+    main.indexOf('relaunchWithDesktopToken') < main.indexOf('runNodeLauncher'),
+    'native privilege normalization must happen before starting Node lifecycle processes'
+  );
+  assert.doesNotMatch(main, /powershell|windows-relaunch-standard/i);
+});
+
+test('WorkBuddy GUI startup stays visible while the watchdog stays hidden', () => {
+  const launcher = read('scripts/win-launcher.js');
+  const watchdog = read('scripts/watchdog.js');
+  const start = launcher.indexOf('function launchWorkBuddy(wb)');
+  const end = launcher.indexOf('\nasync function waitForWorkBuddyCdp', start);
+  assert.ok(start >= 0 && end > start);
+
+  const launchBlock = launcher.slice(start, end);
+  assert.match(launchBlock, /stdio: 'ignore', windowsHide: false, env/);
+  assert.doesNotMatch(launchBlock, /stdio: 'ignore', windowsHide: true, env/);
+  assert.match(watchdog, /spawn\(process\.execPath, args, \{ stdio: 'ignore', windowsHide: true/);
+});
+
+test('installer keeps default lifecycle standard-only and gates the elevated session exception', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+
+  assert.match(installer, /function EnsureWorkBuddyClosed/);
+  assert.match(installer, /--check-workbuddy/);
+  assert.match(installer, /Caption := '\u91cd\u65b0\u68c0\u6d4b'/);
+  assert.match(installer, /Caption := '\u7ed3\u675f\u8fdb\u7a0b'/);
+  assert.match(installer, /Caption := '\u53d6\u6d88'/);
+  assert.match(installer, /--terminate-workbuddy/);
+  assert.match(installer, /--stop-lifecycle/);
+  assert.match(installer, /function ConfirmElevatedInstall/);
+  assert.match(installer, /if IsAdmin and not ConfirmElevatedInstall/);
+  assert.match(installer, /MB_YESNO/);
+  assert.match(installer, /IDYES/);
+  assert.match(installer, /if IsAdmin and not ElevatedSessionConfirmed then\s+exit;/);
+  assert.doesNotMatch(installer, /if IsAdminInstallMode then/);
+  assert.match(installer, /当前安装程序是以管理员权限运行的/);
+  assert.match(installer, /ExecAsOriginalUser\(/);
+  assert.match(installer, /runasoriginaluser[^\r\n]*Check: ShouldAutoLaunch/);
+  assert.match(installer, /function ShouldAutoLaunch[\s\S]*Result := not IsAdmin/);
+  assert.match(installer, /PrivilegesRequired=lowest/);
+  assert.match(installer, /CloseApplications=no/);
+});
+
+test('installer does not expand the app directory while initializing the client page', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+  const helperStart = installer.indexOf('function RunNativeHelper');
+  const helperEnd = installer.indexOf('\nfunction ', helperStart + 1);
+  const initializeStart = installer.indexOf('procedure InitializeWizard');
+  const initializeEnd = installer.indexOf('\nfunction ', initializeStart + 1);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  assert.ok(initializeStart >= 0 && initializeEnd > initializeStart);
+  assert.doesNotMatch(installer.slice(helperStart, helperEnd), /ExpandConstant\('\{app\}'\)/);
+  assert.doesNotMatch(installer.slice(initializeStart, initializeEnd), /ExpandConstant\('\{app\}'\)/);
+  assert.match(installer, /--stop-lifecycle --app-dir "' \+ ExpandConstant\('\{app\}'\) \+ '"/);
+});
+
+test('installer prefers the newest registered official client without replacing enterprise targets', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+  const native = read('scripts/windows-native/main.go');
+  assert.match(installer, /CurrentVersion\\Uninstall/);
+  assert.match(installer, /DisplayIcon/);
+  assert.match(installer, /InstallLocation/);
+  assert.match(installer, /for Index := Length\(Value\) downto 1 do/);
+  assert.match(installer, /ExtractFileExt\(Copy\(Value, 1, Marker - 1\)\)/);
+  assert.match(installer, /CompareClientFileVersions\(Candidate, BestCandidate\) > 0/);
+  assert.match(installer, /PreferDetectedOfficialClient/);
+  assert.match(installer, /CompareText\(SavedClientType, 'enterprise'\) = 0/);
+  assert.match(native, /ClientType\s+string\s+`json:"clientType"`/);
+  assert.match(native, /target\.Binary\+"\\r\\n"\+version\+"\\r\\n"\+clientType/);
+});
+
+test('CodeDaddy installer page targets CodeBuddy instead of WorkBuddy', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+  assert.match(installer, /function ExpectedClientDisplayName\(\)/);
+  assert.match(installer, /if '\{#ProfileId\}' = 'codebuddy-cn' then[\s\S]*Result := 'CodeBuddy CN'/);
+  assert.match(installer, /function ExpectedClientExecutableName\(\)/);
+  assert.match(installer, /if '\{#ProfileId\}' = 'codebuddy-cn' then[\s\S]*Result := 'CodeBuddy CN\.exe'/);
+  assert.match(installer, /else if '\{#ProfileId\}' = 'codebuddy-intl' then[\s\S]*Result := 'CodeBuddy\.exe'/);
+  assert.match(installer, /ClientPage := CreateInputFilePage\([\s\S]*ExpectedClientDisplayName\(\)/);
+  assert.match(installer, /ClientPage\.Add\(ExpectedClientDisplayName\(\) \+ ' 主程序：'/);
+  assert.match(installer, /Programs\\CodeBuddy CN/);
+  assert.match(installer, /Programs\\CodeBuddy/);
+  assert.match(installer, /Dialog\.Caption := '请先退出 ' \+ ExpectedClientDisplayName\(\)/);
+  assert.match(installer, /MessageLabel\.Caption := '安装前需要完全退出当前的 ' \+ ExpectedClientDisplayName\(\)/);
+  assert.doesNotMatch(installer, /Dialog\.Caption := '请先退出 WorkBuddy'/);
+  assert.doesNotMatch(installer, /MessageLabel\.Caption := '安装前需要完全退出当前的 WorkBuddy'/);
+  assert.doesNotMatch(installer, /function ExpectedWorkBuddyName\(\)/);
+});
+
+test('the current CodeBuddy CN installer path uses exact-path checks without requiring product metadata', () => {
+  const native = read('scripts/windows-native/main.go');
+  const targetStart = native.indexOf('func targetForBinary(');
+  const targetEnd = native.indexOf('\nfunc enumerateProcesses(', targetStart);
+  const targetSource = native.slice(targetStart, targetEnd);
+  assert.match(targetSource, /profile == profileCodeCN \|\| profile == profileCodeIntl/);
+  assert.match(targetSource, /codeBuddyExplicitBinaryMatches\(profile, binary\)/);
+  assert.doesNotMatch(targetSource, /codeBuddyBinaryMatches/);
+
+  const explicitStart = native.indexOf('func codeBuddyExplicitBinaryMatches(');
+  const explicitEnd = native.indexOf('\nfunc workBuddyImage(', explicitStart);
+  const explicitSource = native.slice(explicitStart, explicitEnd);
+  assert.match(explicitSource, /profile == profileCodeCN[\s\S]*"CodeBuddy CN\.exe"/);
+  assert.match(explicitSource, /return codeBuddyBinaryMatches\(profile, binary\)/);
+
+  const matchStart = native.indexOf('func matchingWorkBuddyProcessesForTarget(');
+  const matchEnd = native.indexOf('\nfunc matchingWorkBuddyProcesses(', matchStart);
+  const matchSource = native.slice(matchStart, matchEnd);
+  assert.match(matchSource, /target\.Binary != "" \|\| codeBuddyBinaryMatches\(profile, record\.Path\)/);
+});
+
+test('CodeDaddy installer rejects a wrong executable before native process inspection', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+  assert.match(installer, /function SelectedClientFile\(const Candidate: String\): Boolean/);
+  assert.match(installer, /Pos\('codebuddy', Lowercase\('\{#ProfileId\}'\)\) = 1/);
+  assert.match(installer, /function ClientExecutableNameMatches\(const Candidate: String\): Boolean/);
+  assert.match(installer, /ClientExecutableNameMatches\(Candidate\)/);
+  assert.match(installer, /Result := SelectedClientFile\(SelectedWorkBuddyPath\)/);
+  assert.match(installer, /if ResultCode = 20 then[\s\S]*所选路径不适用于当前安装包/);
+});
+
+test('Windows update opens the verified Setup visibly and keeps daemon alive', () => {
+  const daemon = read('scripts/daemon.js');
+  const inject = read('scripts/inject.js');
+  const windowsBranchStart = daemon.indexOf('if (IS_WIN) {', daemon.indexOf('function applyUpdate()'));
+  const macBranchStart = daemon.indexOf("const scriptPath = path.join(__dirname, 'apply-update.sh')", windowsBranchStart);
+  const windowsBranch = daemon.slice(windowsBranchStart, macBranchStart);
+
+  assert.match(windowsBranch, /launchWindowsInstaller\(srcPackage\)/);
+  assert.match(windowsBranch, /installer-opened/);
+  assert.doesNotMatch(windowsBranch, /apply-update\.ps1|apply-update\.vbs|pending\.json|process\.exit/);
+  assert.doesNotMatch(windowsBranch, /VERYSILENT|SILENT/i);
+  assert.match(inject, /\u6253\u5f00\u5b89\u88c5\u7a0b\u5e8f/);
+  assert.match(inject, /function showWindowsInstallerReady[\s\S]*\u6253\u5f00\u5b89\u88c5\u7a0b\u5e8f/);
+  assert.match(inject, /WBS_PLATFORM === 'win32'[\s\S]*showWindowsInstallerReady/);
+});
+
+test('Windows installer launch uses a visible detached process without shell arguments', async () => {
+  let call = null;
+  let unreferenced = false;
+  const fakeSpawn = (file, args, options) => {
+    call = { file, args, options };
+    const child = new EventEmitter();
+    child.pid = 424242;
+    child.unref = () => { unreferenced = true; };
+    queueMicrotask(() => child.emit('spawn'));
+    return child;
+  };
+  const child = launchWindowsInstaller('C:\\Updates\\WorkDaddy-Setup-9.9.9.exe', fakeSpawn);
+  await new Promise((resolve, reject) => {
+    child.once('spawn', resolve);
+    child.once('error', reject);
+  });
+  child.unref();
+  assert.deepEqual(call, {
+    file: 'C:\\Updates\\WorkDaddy-Setup-9.9.9.exe',
+    args: [],
+    options: { detached: true, stdio: 'ignore', windowsHide: false },
+  });
+  assert.equal(unreferenced, true);
+  assert.throws(() => launchWindowsInstaller('C:\\Updates\\legacy.zip', fakeSpawn), /Setup\.exe/);
+});
+
+test('macOS update still uses the existing apply-update shell script', () => {
+  const daemon = read('scripts/daemon.js');
+  const applyStart = daemon.indexOf('function applyUpdate()');
+  const branch = daemon.slice(applyStart, daemon.indexOf('// ================', applyStart));
+  assert.match(branch, /apply-update\.sh/);
+  assert.match(branch, /extractAppFromDmg/);
+  assert.match(branch, /spawn\('bash'/);
+});
+
+test('native helper keeps WorkBuddy CN and AI process detection isolated', () => {
+  const source = read('scripts/windows-native/main.go');
+  const launcher = read('scripts/win-launcher.js');
+  assert.match(source, /workbuddy-cn[\s\S]*WorkBuddy\.exe/);
+  assert.match(source, /workbuddy-ai[\s\S]*WorkBuddyAI\.exe/);
+  assert.match(source, /QueryFullProcessImageNameW/);
+  assert.match(source, /func terminateWorkBuddy\(profile string\)/);
+  assert.match(source, /uniqueRunningWorkBuddyPath/);
+  assert.match(source, /terminateExactProcess\(int\(match\.PID\), expectedPath, "WorkBuddy"\)/);
+  assert.match(source, /lifecycle stop requires standard user privilege/);
+  assert.match(launcher, /path\.join\(programFiles, 'WorkBuddy', 'WorkBuddy\.exe'\)/);
+  assert.match(launcher, /path\.join\(programFilesX86, 'WorkBuddy', 'WorkBuddy\.exe'\)/);
+});
+
+test('native lifecycle cleanup accepts a PID that exits during exact inspection', () => {
+  const source = read('scripts/windows-native/main.go');
+  const missingPath = source.indexOf('if actual == ""');
+  const exitedCheck = source.indexOf('procWaitForSingleObject.Call(uintptr(handle), 2000)', missingPath);
+  const mismatch = source.indexOf('return false, exitIdentityMismatch', missingPath);
+  assert.ok(missingPath >= 0 && exitedCheck > missingPath && mismatch > exitedCheck);
+  assert.match(source.slice(exitedCheck, mismatch), /waitResult == waitObject0[\s\S]*return false, 0, nil/);
+});
+
+test('native lifecycle cleanup clears an access-denied PID that is absent from the process snapshot', () => {
+  const source = read('scripts/windows-native/main.go');
+  const inspectStart = source.indexOf('func inspectExactProcess(');
+  const inspectEnd = source.indexOf('\nfunc terminateExactProcess(', inspectStart);
+  assert.ok(inspectStart >= 0 && inspectEnd > inspectStart);
+  const inspect = source.slice(inspectStart, inspectEnd);
+  const denied = inspect.indexOf('errors.Is(err, syscall.ERROR_ACCESS_DENIED)');
+  const snapshot = inspect.indexOf('enumerateProcesses()', denied);
+  const absent = inspect.indexOf('if !present', snapshot);
+  const deniedResult = inspect.indexOf('return false, exitAccessDenied', absent);
+  assert.ok(denied >= 0, 'access-denied inspection must stay fail-closed');
+  assert.ok(snapshot > denied, 'access-denied inspection must refresh the process snapshot');
+  assert.ok(absent > snapshot && deniedResult > absent, 'only a PID absent from the snapshot may be treated as stale');
+  assert.match(inspect.slice(snapshot, deniedResult), /record\.PID == uint32\(pid\)[\s\S]*if !present[\s\S]*return false, 0, nil/);
+});
+
+test('elevated lifecycle cleanup inspects exact state before refusing active termination', () => {
+  const source = read('scripts/windows-native/main.go');
+  const stopStart = source.indexOf('func stopLifecycle(');
+  const stopEnd = source.indexOf('\nfunc appendLog(', stopStart);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart);
+  const stop = source.slice(stopStart, stopEnd);
+  assert.match(stop, /inspectExactProcess\(/);
+  assert.match(stop, /elevated[\s\S]*active[\s\S]*exitAccessDenied/);
+  assert.match(stop, /os\.Remove\(candidate\.path\)/);
+  const helperStart = source.indexOf('if hasArgument("--stop-lifecycle")');
+  const helperEnd = source.indexOf('\n\tif hasArgument("--self-test")', helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  assert.match(source.slice(helperStart, helperEnd), /stopLifecycle\(profile, targetApp, elevated\)/);
+  assert.doesNotMatch(source.slice(helperStart, helperEnd), /if elevated \{[\s\S]*return true, exitAccessDenied/);
+});
+
+test('native lifecycle can recover a missing watchdog PID only from a unique daemon parent', () => {
+  const source = read('scripts/windows-native/main.go');
+  assert.match(source, /ParentPID\s+uint32/);
+  assert.match(source, /ParentPID:\s*entry\.ParentProcessID/);
+  assert.match(source, /func recoverWatchdogPID\(/);
+  assert.match(source, /daemonPID\s*int/);
+  assert.match(source, /len\(candidates\) != 1/);
+  assert.match(source, /candidate\.Path/);
+  const stopStart = source.indexOf('func stopLifecycle(');
+  const stopEnd = source.indexOf('\nfunc appendLog(', stopStart);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart);
+  const stop = source.slice(stopStart, stopEnd);
+  assert.match(stop, /recoverWatchdogPID\(/);
+  assert.match(stop, /readLockPID\(/);
+  assert.match(stop, /watchdog\.pid[\s\S]*无法证明当前 daemon 的唯一 watchdog[\s\S]*return exitIdentityMismatch/);
+});
+
+test('native lifecycle can stop a verified same-profile portable daemon during install', () => {
+  const source = read('scripts/windows-native/main.go');
+  assert.match(source, /func authenticatedDaemonStatus\(profile string\)/);
+  assert.match(source, /status\.Profile\.ID != profile/);
+  assert.match(source, /status\.DataDir/);
+  assert.match(source, /listenerPID != status\.PID/);
+  assert.match(source, /func adoptVerifiedLifecycleNode\(/);
+  assert.match(source, /statusNode := filepath\.Join\(status\.AppDir, "scripts", "runtime", "node", "node\.exe"\)/);
+  const stopStart = source.indexOf('func stopLifecycle(');
+  const stopEnd = source.indexOf('\nfunc appendLog(', stopStart);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart);
+  assert.match(source.slice(stopStart, stopEnd), /adoptVerifiedLifecycleNode\(profile, appDir, daemonPID, watchdogPID\)/);
+});
+
+test('installer lifecycle cleanup releases only the exact installed native launcher', () => {
+  const source = read('scripts/windows-native/main.go');
+  const stopStart = source.indexOf('func stopInstalledLauncher(');
+  const stopEnd = source.indexOf('\nfunc uniqueRunningWorkBuddyPath(', stopStart);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart);
+  const stop = source.slice(stopStart, stopEnd);
+  assert.match(stop, /filepath\.Join\(appDir, "WorkDaddyLauncher\.exe"\)/);
+  assert.match(stop, /enumerateProcesses\(\)/);
+  assert.match(stop, /record\.PID == uint32\(os\.Getpid\(\)\)[\s\S]*continue/);
+  assert.match(stop, /samePath\(record\.Path, expectedLauncher\)/);
+  assert.match(stop, /len\(matches\) > 1[\s\S]*exitIdentityMismatch/);
+  assert.match(stop, /terminateExactProcess\(int\(matches\[0\]\.PID\), expectedLauncher, "launcher"\)/);
+});
+
+test('native startup retains portable and registered WorkBuddy discovery without CIM', () => {
+  const launcher = read('scripts/win-launcher.js');
+  const nativeFinderStart = launcher.indexOf('function findWorkBuddyNative()');
+  const nativeFinderEnd = launcher.indexOf('\nfunction nativeDaemonStatusMatches', nativeFinderStart);
+  assert.ok(nativeFinderStart >= 0 && nativeFinderEnd > nativeFinderStart);
+  const nativeFinder = launcher.slice(nativeFinderStart, nativeFinderEnd);
+  assert.match(nativeFinder, /--list-workbuddy/);
+  assert.match(nativeFinder, /WBSWITCH_WORKBUDDY_DIR/);
+  assert.match(nativeFinder, /App Paths/);
+  assert.match(nativeFinder, /CurrentVersion\\\\Uninstall/);
+  assert.match(nativeFinder, /Get-ChildItem[\s\S]*-Depth 5/);
+  assert.doesNotMatch(nativeFinder, /Get-CimInstance/);
+});
+
+test('PowerShell discovery preserves non-ASCII installation paths', { skip: process.platform !== 'win32' }, () => {
+  const expected = 'D:\\沃克巴迪\\WorkBuddyAI\\WorkBuddyAI.exe';
+  assert.deepEqual(strictPowerShellLines(`Write-Output '${expected}'`), [expected]);
+});
+
+test('native upgrade stops a managed-Node lifecycle only through the verified JS boundary', () => {
+  const launcher = read('scripts/win-launcher.js');
+  assert.match(launcher, /async function stopVerifiedLegacyManagedLifecycle\(bundledNode\)/);
+  const cleanupStart = launcher.indexOf('async function stopVerifiedLegacyManagedLifecycle(bundledNode)');
+  const cleanupEnd = launcher.indexOf('\nfunction nativeDaemonStatusMatches', cleanupStart);
+  const cleanup = launcher.slice(cleanupStart, cleanupEnd);
+  assert.match(cleanup, /findNode\(\)/);
+  assert.match(cleanup, /sameWindowsPath\(legacyNode, bundledNode\)/);
+  assert.match(cleanup, /await stopDaemonByPort\(legacyNode\)/);
+  assert.doesNotMatch(cleanup, /taskkill|terminateExactNode/);
+  const ensureStart = launcher.indexOf('async function ensureDaemonNative(nodeBin)');
+  const ensureEnd = launcher.indexOf('\nasync function waitForWorkBuddyCdpNative', ensureStart);
+  const ensure = launcher.slice(ensureStart, ensureEnd);
+  assert.ok(
+    ensure.indexOf('stopVerifiedLegacyManagedLifecycle(nodeBin)') < ensure.indexOf('stopNativeLifecycle()'),
+    'verified legacy cleanup must run before the bundled-node-only native helper'
+  );
+});
+
+test('native startup failures report one structured diagnostic event', () => {
+  const launcher = read('scripts/win-launcher.js');
+  const nativeMainStart = launcher.indexOf('async function nativeStartupMain()');
+  const nativeMainEnd = launcher.indexOf('\n// ---------- legacy script entry', nativeMainStart);
+  const nativeMain = launcher.slice(nativeMainStart, nativeMainEnd);
+  assert.match(nativeMain, /nativeWorkBuddyDiscoverySummary\(\)/);
+  assert.match(nativeMain, /nativeCdpDiagnostics/);
+  assert.doesNotMatch(nativeMain, /captureMessage\('未找到 WorkBuddy\.exe'/);
+  assert.match(launcher, /error\.sentryStage/);
+  assert.match(launcher, /error\.sentryExtra/);
+  assert.match(launcher, /nativeDaemonDiagnostics/);
+});
+
+test('native startup precisely restarts a verified WorkBuddy without CDP', () => {
+  const launcher = read('scripts/win-launcher.js');
+  const stopStart = launcher.indexOf('function stopNativeWorkBuddy()');
+  const stopEnd = launcher.indexOf('\nfunction ', stopStart + 1);
+  assert.ok(stopStart >= 0 && stopEnd > stopStart);
+  const stop = launcher.slice(stopStart, stopEnd);
+  assert.match(stop, /--terminate-workbuddy/);
+  assert.match(stop, /--profile[\s\S]*PROFILE\.id/);
+  assert.match(stop, /result\.status !== 0[\s\S]*throw new Error/);
+
+  const nativeMainStart = launcher.indexOf('async function nativeStartupMain()');
+  const nativeMainEnd = launcher.indexOf('\n// ---------- legacy script entry', nativeMainStart);
+  const nativeMain = launcher.slice(nativeMainStart, nativeMainEnd);
+  assert.match(nativeMain, /nativeWorkBuddyRunning\(\)[\s\S]*stopNativeWorkBuddy\(\)[\s\S]*waitForWorkBuddyCdpNative/);
+  assert.doesNotMatch(nativeMain, /return 10/);
+});
+
+test('native WorkBuddy restart preserves helper diagnostics for permission failures', () => {
+  const launcher = read('scripts/win-launcher.js');
+  const start = launcher.indexOf('function stopNativeWorkBuddy()');
+  const end = launcher.indexOf('\nfunction ', start + 1);
+  assert.ok(start >= 0 && end > start);
+  const stop = launcher.slice(start, end);
+  assert.match(stop, /result\.stderr/);
+  assert.match(stop, /无法精确重启当前 WorkBuddy[\s\S]*detail/);
+});
+
+test('native CDP startup detects failed child launches instead of waiting for the full timeout', () => {
+  assert.equal(nativeLaunchFailed(null), false);
+  assert.equal(nativeLaunchFailed({ errorCode: null, exitCode: null }), false);
+  assert.equal(nativeLaunchFailed({ errorCode: null, exitCode: 0 }), false);
+  assert.equal(nativeLaunchFailed({ errorCode: 'ENOENT', exitCode: null }), true);
+  assert.equal(nativeLaunchFailed({ errorCode: null, exitCode: 9 }), true);
+
+  const launcher = read('scripts/win-launcher.js');
+  const waitStart = launcher.indexOf('async function waitForWorkBuddyCdpNative(binary)');
+  const waitEnd = launcher.indexOf('\nasync function nativeStartupMain()', waitStart);
+  const wait = launcher.slice(waitStart, waitEnd);
+  assert.match(wait, /nativeLaunchFailed\(nativeLaunchState\)/);
+  assert.match(wait, /windows-native-launcher-workbuddy-exit/);
+  assert.match(wait, /stopNativeWorkBuddy\(\)[\s\S]*start\(\)/);
+});
+
+test('denied elevated lifecycle is preserved after an authenticated status proof', () => {
+  const source = read('scripts/windows-native/main.go');
+  assert.match(source, /exitPreserveLifecycle\s*=\s*13/);
+  assert.match(source, /func authenticatedElevatedDaemonStatus\(profile string\)/);
+  assert.match(source, /\.api-token/);
+  assert.match(source, /len\(token\) != 64/);
+  assert.match(source, /api\/status/);
+  assert.match(source, /X-WorkDaddy-Token/);
+  assert.match(source, /privil[e]ge\s*!=\s*"elevated"|Privilege\s*!=\s*"elevated"/);
+  assert.match(source, /status\.Profile\.ID != profile/);
+  assert.match(source, /listenerPidOnPort\(port\)/);
+  assert.match(source, /netstat/);
+
+  const helperStart = source.indexOf('if hasArgument("--stop-lifecycle")');
+  const helperEnd = source.indexOf('\n\tif hasArgument("--self-test")', helperStart);
+  assert.ok(helperStart >= 0 && helperEnd > helperStart);
+  const block = source.slice(helperStart, helperEnd);
+  assert.match(block, /code == exitAccessDenied && !elevated/);
+  assert.match(block, /authenticatedElevatedDaemonStatus\(profile\)/);
+  assert.match(block, /exitPreserveLifecycle/);
+  assert.doesNotMatch(block, /if elevated \{[\s\S]*return true, exitAccessDenied/);
+});
+
+test('installer continues with a preserved lifecycle instead of blocking', () => {
+  const installer = read('scripts/win/workdaddy.iss');
+  assert.match(installer, /PreserveExistingLifecycle: Boolean/);
+  assert.match(installer, /function ShouldReplaceRuntime/);
+  assert.match(installer, /Result := not PreserveExistingLifecycle/);
+  assert.match(installer, /Check: ShouldReplaceRuntime/);
+  assert.match(installer, /if ResultCode = 13 then[\s\S]*PreserveExistingLifecycle := True/);
+});

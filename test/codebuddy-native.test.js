@@ -19,6 +19,15 @@ test('invalid backups never reach native storage',async()=>{
   const s=service();await assert.rejects(replaceNativeSession.call(s,{account:{uid:'x'}}),/无效/);assert.deepEqual(s.events,[]);
 });
 
+test('a failed native write never deletes the previous encrypted session', async () => {
+  const s = service();
+  s.storeSession = async session => { if (session === next) throw new Error('storage unavailable'); s.events.push('store:'+session.account.uid); };
+  s.storageService = { remove: async () => s.events.push('remove') };
+  await assert.rejects(replaceNativeSession.call(s, next), /原登录态/);
+  assert.deepEqual(s.events, ['store:old','notify:old','schedule']);
+  assert.equal(s.currentSession, original);
+});
+
 test('a failed switch from logged-out state removes the new encrypted identity', async () => {
   const s = service(); s.currentSession = undefined;
   s.storageService = {remove:async () => s.events.push('remove')};

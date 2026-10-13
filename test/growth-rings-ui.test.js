@@ -176,7 +176,7 @@ test('growth primary is green in light and blue-purple in dark, cyber, and glass
   assert.doesNotMatch(inject, /html\[data-wbs-theme-id="eye-care"\][^']*--wbs-primary:#7f77dd/);
   assert.match(inject, /\.wbs-daily-rings,\.wbs-checkin-tag\.ok\{[^}]*color:var\(--wbs-badge-fg\)/);
   assert.doesNotMatch(inject, /\.wbs-ck\.ok\{color:inherit\}/);
-  assert.match(inject, /html\[data-wbs-theme-id="nebula"\][^']*\.wbs-checkin-tag\.ok\{[^}]*backdrop-filter:blur/);
+  assert.match(inject, /html\[data-wbs-theme-id="nebula"\][^']*\.wbs-checkin-tag\.ok:not\(:where\([^}]+\{[^}]*backdrop-filter:blur/);
   assert.match(inject, /\.wbs-growth-rewards-head em\{[^}]*color:var\(--wb-icon-tertiary/);
   assert.match(inject, /\.wbs-growth-tier b\{[^}]*color:var\(--wb-color-text-secondary/);
 });

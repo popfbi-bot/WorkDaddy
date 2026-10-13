@@ -65,7 +65,7 @@ chmod 644 "$APP/Contents/Resources/AppIcon.icns"
 echo "==> 应用图标已同步（背景 #e1e1e1）"
 
 # 2) 覆盖运行时代码和主题配置，保留 launcher/Info.plist/壁纸/node_modules/theme-audit.js。
-for f in daemon.js markdown-preview.js renderer-api-bridge.js codebuddy-native.js codebuddy-session-store.js codebuddy-files.js toast-runtime.js toast-options.js primary-account.js account-credit-cache.js completion-report.js automation-runtime.js automation-model.js automation-packages.js automation-compatibility.js automation-transfer.js automation-discovery.js automation-likes.js automation-zip.js automation.js automation-picker.js token-refresh.js session-db.js session-fork.js session-sync.js session-dirty.js third-party-models.js secure-transfer.js session-transfer.js windows-process-boundary.js windows-installer-launch.js workbuddy-compat.js inject.js theme-patches.js theme-text-shadow.js theme-vars.js credit-segments.js credit-resource-queries.js credit-request-usage.js credit-history-sync.js credit-usage-store.js credit-rotation.js token-stats.js growth-active.js growth-daily.js atomic-file-write.js ui-port.js checkin-result.js lib.js platform.js profiles.js workbuddy-target.js cdp-targets.js sentry-report.js usage-report.js install.sh relaunch-with-cdp.sh uninstall.sh apply-update.sh; do
+for f in daemon.js markdown-preview.js renderer-api-bridge.js codebuddy-native.js codebuddy-native-recovery.js codebuddy-session-store.js codebuddy-files.js toast-runtime.js toast-options.js primary-account.js account-credit-cache.js completion-report.js automation-runtime.js automation-model.js automation-packages.js automation-compatibility.js automation-transfer.js automation-discovery.js automation-likes.js automation-zip.js automation.js automation-picker.js token-refresh.js session-db.js session-fork.js session-sync.js session-dirty.js third-party-models.js secure-transfer.js session-transfer.js windows-process-boundary.js windows-installer-launch.js workbuddy-compat.js inject.js theme-patches.js theme-text-shadow.js theme-vars.js credit-segments.js credit-resource-queries.js credit-request-usage.js credit-history-sync.js credit-usage-store.js credit-rotation.js token-stats.js growth-active.js growth-daily.js atomic-file-write.js ui-port.js checkin-result.js lib.js platform.js profiles.js workbuddy-target.js cdp-targets.js sentry-report.js usage-report.js install.sh relaunch-with-cdp.sh uninstall.sh apply-update.sh; do
   [ -f "scripts/$f" ] && cp "scripts/$f" "$APP/Contents/Resources/scripts/$f"
 done
 # Theme tokens are source code too; the reusable shell may contain older colors.
@@ -162,6 +162,22 @@ BUILT_ARCH_PRIORITY="$(/usr/libexec/PlistBuddy -c 'Print :LSArchitecturePriority
 if [ "$BUILT_ARCH_PRIORITY" != "$LS_ARCH_PRIORITY" ]; then exit 3; fi
 sed -i.bak "s|^PROFILE=.*|PROFILE=\"${PROFILE}\"|" "$PACKAGE_APP/Contents/MacOS/launcher"
 rm -f "$PACKAGE_APP/Contents/MacOS/launcher.bak"
+# macOS launcher 缺少 profile 环境变量兜底修复：launchd 注册失败时仍必须让
+# daemon 看到与 plist 相同的 profile/data/port，否则 cdp-targets.js 无法归属企业版页面。
+python3 - "$PACKAGE_APP/Contents/MacOS/launcher" <<'PY'
+from pathlib import Path
+import sys
+
+path = Path(sys.argv[1])
+source = path.read_text(encoding='utf-8')
+old = '    nohup "$NODE_BIN" "$SCRIPTS_DIR/daemon.js" >> "$DATA_DIR/daemon.log" 2>&1 &'
+new = '    WBSWITCH_DATA_DIR="$DATA_DIR" WBSWITCH_PORT="$UI_PORT" WBSWITCH_PROFILE="$PROFILE" nohup "$NODE_BIN" "$SCRIPTS_DIR/daemon.js" >> "$DATA_DIR/daemon.log" 2>&1 &'
+if old in source:
+    source = source.replace(old, new, 1)
+elif new not in source:
+    raise SystemExit('macOS launcher 缺少 profile 环境变量兜底修复锚点')
+path.write_text(source, encoding='utf-8', newline='')
+PY
 # 企业版可能在 /Applications 下使用不同的 .app 名称。把官方路径优先、
 # profile 过滤的自动发现逻辑同步进产物 launcher；这样壳内 launcher 与
 # scripts/relaunch-with-cdp.sh 的行为一致。
@@ -546,10 +562,12 @@ else
   # 产物保留与 Finder 布局版本一致的观感。默认取仓库内的布局源（scripts/assets/dmg-layout）。
   DSSTORE_SOURCE="${WORKDADDY_DSSTORE_SOURCE:-}"
   if [ -z "$DSSTORE_SOURCE" ]; then
-    DSSTORE_FALLBACK="scripts/assets/dmg-layout/workdaddy.DS_Store"
-    if [ "$PROFILE" = "workbuddy-ai" ]; then
-      DSSTORE_FALLBACK="scripts/assets/dmg-layout/workdaddy-ai.DS_Store"
-    fi
+    case "$PROFILE" in
+      workbuddy-ai) DSSTORE_FALLBACK="scripts/assets/dmg-layout/workdaddy-ai.DS_Store" ;;
+      codebuddy-cn) DSSTORE_FALLBACK="scripts/assets/dmg-layout/codedaddy-cn.DS_Store" ;;
+      codebuddy-intl) DSSTORE_FALLBACK="scripts/assets/dmg-layout/codedaddy.DS_Store" ;;
+      *) DSSTORE_FALLBACK="scripts/assets/dmg-layout/workdaddy.DS_Store" ;;
+    esac
     if [ -f "$DIR/$DSSTORE_FALLBACK" ]; then
       DSSTORE_SOURCE="$DIR/$DSSTORE_FALLBACK"
     fi

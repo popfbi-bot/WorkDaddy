@@ -242,7 +242,7 @@ test('delete route validates before SQL and deletes the matched set only', () =>
   const selectAt = route.indexOf("SELECT id, user_id FROM sessions");
   assert.ok(normalizeAt >= 0 && normalizeAt < validateAt, 'the raw batch must be bounded before path validation');
   assert.ok(validateAt < selectAt, 'all IDs must be validated before SELECT or DELETE');
-  assert.match(route, /SELECT id, user_id FROM sessions WHERE id IN \(' \+ placeholders \+ '\);', memberIds/);
+  assert.match(route, /SELECT id, user_id FROM sessions WHERE id IN \(' \+ placeholders \+ '\).*memberIds/);
   assert.match(route, /collectLineageMembersForDelete\(DATA_DIR, ids\)/);
   assert.match(route, /\.filter\(\(id\) => isValidSessionId\(id\)\)/);
   assert.match(route, /DELETE FROM sessions WHERE id IN \(" \+ sqlPlaceholders\(matchedIds\) \+ "\);",\s+matchedIds/s);
@@ -253,13 +253,35 @@ test('delete route validates before SQL and deletes the matched set only', () =>
   const deleteAt = route.indexOf('DELETE FROM sessions WHERE id IN');
   assert.ok(filesAt >= 0 && filesAt < rulesAt && rulesAt < deleteAt,
     'filesystem and rule cleanup must succeed before the retry anchor is removed from the database');
+  assert.match(route, /assertAccountSwitchIdle\(\)/,
+    'deletion must exclude concurrent account-switch session copy writes');
+});
+
+test('delete route refuses while account switching or session copy holds the operation gate', async () => {
+  const source = fs.readFileSync(daemonPath, 'utf8');
+  const start = source.indexOf("  if (req.method === 'POST' && p === '/api/sessions/delete')");
+  const end = source.indexOf('  // 恢复会话：', start);
+  const ctx = vm.createContext({
+    codeBuddyFiles: null,
+    req: { method: 'POST' },
+    p: '/api/sessions/delete',
+    res: {},
+    normalizeSessionIdBatch: require('../scripts/session-db.js').normalizeSessionIdBatch,
+    readBody: async () => ({ ids: ['session'] }),
+    isValidSessionId: id => id === 'session',
+    assertAccountSwitchIdle: async () => { throw new Error('会话同步尚未完成，请稍后切换账号'); },
+    json: (_, status, body) => ({ status, body }),
+  });
+  const result = await vm.runInContext('(async function () {' + source.slice(start, end) + '\n})()', ctx);
+  assert.equal(result.status, 409);
+  assert.match(result.body.error, /会话同步尚未完成/);
 });
 
 test('delete route accepts more than 100 session IDs in one request', async (t) => {
   const { createSessionDb, normalizeSessionIdBatch } = require('../scripts/session-db.js');
   const root = tempDir(t);
   const db = createSessionDb({ dbPath: path.join(root, 'sessions.db') });
-  await db.run('CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT)');
+  await db.run('CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT, is_background_automation INTEGER)');
   const ids = Array.from({ length: 101 }, (_, index) => `00000000-0000-0000-0000-${String(index).padStart(12, '0')}`);
   for (const id of ids) await db.run('INSERT INTO sessions (id, user_id) VALUES (?, ?)', [id, 'owner']);
 
@@ -295,7 +317,7 @@ test('delete route removes recorded copies across accounts from both DB and file
   const { createSessionDb, normalizeSessionIdBatch } = require('../scripts/session-db.js');
   const root = tempDir(t);
   const db = createSessionDb({ dbPath: path.join(root, 'sessions.db') });
-  await db.run('CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT)');
+  await db.run('CREATE TABLE sessions (id TEXT PRIMARY KEY, user_id TEXT, is_background_automation INTEGER)');
   const rows = [['session-a', 'source'], ['copy-a', 'target'], ['copy-third', 'third'], ['unrelated', 'target']];
   for (const [id, uid] of rows) {
     await db.run('INSERT INTO sessions (id, user_id) VALUES (?, ?)', [id, uid]);

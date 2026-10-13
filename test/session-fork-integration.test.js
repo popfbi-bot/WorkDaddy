@@ -143,5 +143,5 @@ test('fork route accepts a shared session row for the current account', () => {
   const end = daemonSource.indexOf("p === '/api/sessions/copy'", start);
   assert.ok(start >= 0 && end > start, 'fork route must remain isolated from copy route');
   const route = daemonSource.slice(start, end);
-  assert.match(route, /FROM sessions WHERE id = \? AND \(user_id = \? OR user_id = ''\) AND deleted_at IS NULL LIMIT 1;/);
+  assert.match(route, /FROM sessions WHERE id = \? AND \(user_id = \? OR user_id = ''\) AND deleted_at IS NULL AND COALESCE\(is_background_automation, 0\) = 0 LIMIT 1;/);
 });

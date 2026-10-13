@@ -789,6 +789,13 @@ func readLockPID(path string) int {
 	return owner.PID
 }
 
+// A different snapshot name proves a recycled PID is unrelated. A matching or
+// unavailable name never authorizes termination or bypasses exact path checks.
+func processNameDiffers(actualName, expectedPath string) bool {
+	return actualName != "" && expectedPath != "" &&
+		!strings.EqualFold(actualName, filepath.Base(expectedPath))
+}
+
 func inspectExactProcess(pid int, expectedPath string, label string) (bool, int, error) {
 	if pid <= 0 {
 		return false, 0, nil
@@ -809,6 +816,9 @@ func inspectExactProcess(pid int, expectedPath string, label string) (bool, int,
 				present := false
 				for _, record := range records {
 					if record.PID == uint32(pid) {
+						if processNameDiffers(record.Name, expectedPath) {
+							return false, 0, nil
+						}
 						present = true
 						break
 					}
@@ -828,6 +838,9 @@ func inspectExactProcess(pid int, expectedPath string, label string) (bool, int,
 		return false, exitIdentityMismatch, fmt.Errorf("PID %d %s executable path is unavailable", pid, label)
 	}
 	if !samePath(actual, expectedPath) {
+		if processNameDiffers(filepath.Base(actual), expectedPath) {
+			return false, 0, nil
+		}
 		return false, exitIdentityMismatch, fmt.Errorf("PID %d is %s, expected %s", pid, actual, expectedPath)
 	}
 	return true, 0, nil

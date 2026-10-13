@@ -391,14 +391,36 @@
     return findModernQueueAdapter(doc) || findLegacyQueueAdapter(doc);
   }
 
+  // The conversation-list click handler is the only public path that performs
+  // the real route transition. Its minified body is rewritten between releases,
+  // so match a group of stable string/property markers instead of one release's
+  // private symbols. Groups are OR'd with each other; markers inside a group are
+  // AND'd. Prefer the newest group first so a build that carries several marker
+  // sets is classified by the current contract.
+  var CONVERSATION_NAVIGATION_MARKER_GROUPS = [
+    // WorkBuddy >= 5.7: ConversationList loader. Dedupes on loadSession, reads
+    // options.conversationEngineRouteTarget and honours preserveListView.
+    ['preserveListView', 'conversationEngineRouteTarget', 'loadSession'],
+    // WorkBuddy <= 5.6: hover peek dismissal plus task route sync. Both symbols
+    // were dropped in 5.7, so this group only matches older renderers.
+    ['dismissHoverPeek', 'syncTaskRouteFromClick'],
+  ];
+
   function functionLooksLikeConversationNavigation(value, nativeCodeBuddy) {
     if (typeof value !== 'function') return false;
     try {
       var source = Function.prototype.toString.call(value);
       if (nativeCodeBuddy && source.indexOf('SessionLoadCancelledError') >= 0 &&
           source.indexOf('getPendingMessageTracker') >= 0 && source.indexOf('getInitialMessages') >= 0) return true;
-      return source.indexOf('dismissHoverPeek') >= 0 &&
-        source.indexOf('syncTaskRouteFromClick') >= 0;
+      for (var gi = 0; gi < CONVERSATION_NAVIGATION_MARKER_GROUPS.length; gi++) {
+        var group = CONVERSATION_NAVIGATION_MARKER_GROUPS[gi];
+        var matched = true;
+        for (var mi = 0; mi < group.length; mi++) {
+          if (source.indexOf(group[mi]) < 0) { matched = false; break; }
+        }
+        if (matched) return true;
+      }
+      return false;
     } catch (_) {
       return false;
     }
@@ -447,9 +469,10 @@
     return isSessionsResource(resource) ? resource : null;
   }
 
-  // WorkBuddy's conversation list owns the real navigation path. Prefer the
-  // official SDK/navigation handler; adapter.emit is retained for older builds
-  // whose list did not expose the handler through React hooks.
+  // WorkBuddy's conversation list owns the real navigation path, so prefer the
+  // official handler found in its React hooks (or the session-navigation SDK
+  // when a build exposes it). adapter.emit is retained for older builds whose
+  // list did not expose the handler at all.
   function findConversationActivationApi(doc, options) {
     var nativeCodeBuddy = !!(options && /^codebuddy-(cn|intl)$/.test(options.profileId));
     var found = findQueueAdapter(doc);
@@ -457,18 +480,15 @@
     var resource = findSessionsResource(doc);
     var handler = findConversationNavigationHandler(doc, nativeCodeBuddy);
     var sdkNavigate = null;
-    var sdkNavigateKind = '';
     try {
       var conversations = typeof window !== 'undefined' && window.wb && window.wb.conversations;
+      // Only a real route transition may be treated as authoritative. The
+      // sibling `setCurrentConversation` looks similar but merely reports the
+      // active conversation to the main process; it never navigates, so a
+      // fallback onto it produced an "official-dispatched" log with no page
+      // change and retried until the activation timeout.
       if (conversations && typeof conversations.navigateToSession === 'function') {
         sdkNavigate = conversations.navigateToSession;
-        sdkNavigateKind = 'navigateToSession';
-      } else if (conversations && typeof conversations.setCurrentConversation === 'function') {
-        // Current WorkBuddy exposes the official route transition under this
-        // SDK name. It is authoritative even while React has not mounted the
-        // sidebar handler yet, which is the common post-reload window.
-        sdkNavigate = conversations.setCurrentConversation;
-        sdkNavigateKind = 'setCurrentConversation';
       }
     } catch (_) {}
     if (!handler && !sdkNavigate && (nativeCodeBuddy || !adapter || typeof adapter.emit !== 'function')) return null;
@@ -499,7 +519,7 @@
             Promise.resolve(handler(id, '', false, false, nativeCodeBuddy ? undefined : {})).catch(function () {});
           } else if (sdkNavigate) {
             var conversationsApi = (typeof window !== 'undefined' && window.wb && window.wb.conversations) || null;
-            Promise.resolve(sdkNavigate.call(conversationsApi, id, sdkNavigateKind === 'navigateToSession' ? { ensureLoaded: true } : undefined)).catch(function () {});
+            Promise.resolve(sdkNavigate.call(conversationsApi, id, { ensureLoaded: true })).catch(function () {});
           } else {
             adapter.emit('jump-to-conversation', {
               source: 'tencent-docs',

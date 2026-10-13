@@ -90,6 +90,18 @@ test('nebula file links and code copy controls use transparent backgrounds in al
   assert.doesNotMatch(patch.css, /:hover|:focus|:active/, 'unconditional important override covers native hover and active fills');
 });
 
+test('nebula removes backgrounds from teams composer utility trigger wrappers', () => {
+  const patch = patches.find(p => p.id === 'patch-107');
+  assert.ok(patch);
+  assert.equal(patch.themeId, 'nebula');
+  for (const cls of ['cr-voice-trigger-tooltip', 'cr-context-usage-tooltip-trigger', 'cr-enhance-button-tooltip']) {
+    assert.ok(patch.css.includes('.' + cls));
+  }
+  assert.match(patch.css, /\.cr-input-toolbar__right>span:is\(/);
+  assert.match(patch.css, /background:transparent !important/);
+  assert.match(patch.css, /background-color:transparent !important/);
+});
+
 test('generic dark popup text repair excludes the WorkDaddy status popover', () => {
   const patch = patches.find(item => item.id === 'patch-44');
   const selectors = patch.css.slice(0, patch.css.indexOf('{')).split(',');

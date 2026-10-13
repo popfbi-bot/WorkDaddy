@@ -347,3 +347,66 @@ test('compat reads the sidebar conversation status snapshot from a narrow fiber 
   };
   assert.deepEqual(compat.findConversationListRecords(doc), records);
 });
+
+
+test('dirty monitor polls sidebar revisions when the resource stays empty, and disposes on reinjection', async t => {
+  const vm = require('node:vm');
+  let records = [{ id: 'old', title: 'fixture', status: 'completed', sortAt: 10 }];
+  const sent = [];
+  const intervals = new Map();
+  const disposers = [];
+  const trackers = [];
+  const ctx = {
+    document: {}, Promise, setTimeout, clearTimeout,
+    setInterval(fn) { intervals.set(fn, fn); return fn; },
+    clearInterval(id) { intervals.delete(id); },
+    registerDisposer(fn) { disposers.push(fn); },
+    api: async (route, options) => {
+      if (route === '/api/current') return { uid: 'fixture-account' };
+      sent.push(JSON.parse(options.body)); return { ok: true };
+    },
+    WBS_COMPAT: {
+      findSessionsResource: () => ({ list: () => ({ agents: [] }), on() {}, off() {} }),
+      findConversationListRecords: () => records,
+    },
+    subscribeSessionMonitorResource: inject.subscribeSessionMonitorResource,
+    createSessionDirtyTracker(send) {
+      const tracker = inject.createSessionDirtyTracker(send);
+      trackers.push(tracker); return tracker;
+    },
+  };
+  t.after(() => { disposers.forEach(fn => fn()); trackers.forEach(tracker => tracker.destroy()); });
+  const start = injectSource.indexOf('    var sessionDirtyResource = null;');
+  const end = injectSource.indexOf('    /** 状态机可视化日志', start);
+  vm.runInNewContext(injectSource.slice(start, end), ctx);
+  await new Promise(resolve => setImmediate(resolve));
+  const poll = () => { for (const fn of intervals.values()) fn(); trackers.forEach(tracker => tracker.flush()); };
+  poll();
+  assert.equal(sent.flatMap(body => body.events || []).length, 0, 'initial sidebar data is a clean baseline');
+  records = [{ ...records[0], sortAt: 11 }];
+  poll();
+  assert.deepEqual(sent.flatMap(body => body.events || []), [{ id: 'old', event: 'sessionUpdated' }]);
+  assert.equal(sent.at(-1).uid, 'fixture-account');
+  poll();
+  assert.equal(sent.flatMap(body => body.events || []).length, 1, 'unchanged polls do not repeat events');
+  records = [];
+  poll();
+  records = [{ id: 'old', title: 'fixture', status: 'completed', sortAt: 11 },
+    { id: 'new', title: 'new fixture', status: 'running', sortAt: 12 }];
+  poll();
+  assert.deepEqual(sent.flatMap(body => body.events || []).at(-1), { id: 'new', event: 'sessionCreated' });
+  assert.equal(sent.flatMap(body => body.events || []).length, 2, 'temporary missing sidebar does not reset the baseline');
+  disposers.forEach(fn => fn());
+  assert.equal(intervals.size, 0, 'reinjection removes the polling timer');
+});
+
+
+test('synced-member eligibility survives later renderer events and dirty-index reloads', () => {
+  let index = createDirtyIndex();
+  index.markBaseline('one');
+  index.mark('one', 'a', 'sessionSynced', 100);
+  index.mark('one', 'a', 'sessionUpdated', 101);
+  index = createDirtyIndex(JSON.parse(JSON.stringify(index.state)));
+  assert.deepEqual(index.get('one', 'a'), { at: 101, event: 'sessionSynced' });
+  assert.equal(index.clear('one', 'a', 100), false, 'older acknowledgements cannot erase a newer event');
+});

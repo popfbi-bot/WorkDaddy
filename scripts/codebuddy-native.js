@@ -23,8 +23,10 @@ async function replaceNativeSession(session) {
     else await this.storageService.remove(this.getStorageKey(), -1);
   };
   let succeeded = false;
+  let persistedNewSession = false;
   try {
     await persist(session);
+    persistedNewSession = session !== null;
     this.currentSession = session || undefined;
     this.refreshFailureRetryCount = 0;
     this._onDidChangeSession.fire(this.currentSession);
@@ -33,7 +35,12 @@ async function replaceNativeSession(session) {
     return {uid:session ? String(session.account.uid) : null};
   } catch (_) {
     try {
-      await persist(previous);
+      // A failed store may have touched an unknown encrypted record. Only
+      // remove a newly written session after the write itself completed and
+      // the later publish failed; never turn an uncertain write failure into
+      // deletion of the native login state.
+      if (previous) await persist(previous);
+      else if (persistedNewSession) await persist(null);
       this.currentSession = previous;
       this._onDidChangeSession.fire(previous);
       this.scheduleRefresh();

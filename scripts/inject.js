@@ -1421,8 +1421,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   var WBS_LANGUAGE_KEY = 'workdaddy.ui.language';
   var WBS_ACCOUNT_MASK_KEY = 'workdaddy.account.mask.' + PROFILE_ID;
   var WBS_INITIAL_AUTO_COPY_ALL_KEY = 'workdaddy.initial.autoCopyAllSessions.' + PROFILE_ID;
+  var WBS_ACCOUNT_NOTE_HOVER_KEY = 'workdaddy.account.noteHover.' + PROFILE_ID;
+  var WBS_GROWTH_PLAN_HOVER_KEY = 'workdaddy.account.growthPlanHover.' + PROFILE_ID;
   var WBS_I18N_EN = {
     '账号备注': 'Account note',
+    '鼠标悬浮显示账号备注': 'Show account note on hover',
     '查看或编辑账号备注': 'View or edit account note',
     '暂无备注，点击添加…': 'No note yet. Click to add…',
     '未保存 ·': 'Unsaved ·',
@@ -1500,7 +1503,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     '派出前当前 Buddy 查询失败': 'Could not load current Buddy before departure', '旅行地点查询失败': 'Could not load travel destinations', 'Buddy 派出失败': 'Buddy departure failed',
     '账号 {account}：Buddy 已派出旅行': 'Account {account}: Buddy departed', '账号 {account}：暂无可用旅行地点': 'Account {account}: No travel destinations available', '账号 {account}：尚未选择 Buddy，暂不派出': 'Account {account}: No Buddy selected; skipping departure',
     '账号 {account}：今天已经处理过旅行，跳过': 'Account {account}: Travel already handled today; skipping', '账号 {account}：旅行处理失败：{reason}': 'Account {account}: Travel failed: {reason}', '部分账号 Buddy 操作失败，请查看运行记录': 'Some Buddy actions failed. Check the run log.',
-    ' 分支到新会话': ' Start a new conversation here', '账号设置': 'Account settings', '排序方式': 'Sort by', '积分不足时的账号切换建议': 'Suggest switching accounts when credits run low',
+    ' 分支到新会话': ' Start a new conversation here', '账号设置': 'Account settings', '悬浮窗口': 'Hover popovers', '排序方式': 'Sort by', '积分不足时的账号切换建议': 'Suggest switching accounts when credits run low',
     '查询失败，请重新选择时间重试': 'Query failed. Select a time range to retry.',
     '查询已中断，请重新选择时间重试': 'Query interrupted. Select a time range to retry.',
     '无法读取查询进度，请重新选择时间重试': 'Could not read progress. Select a time range to retry.',
@@ -1588,6 +1591,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     "Token 用量仅统计本机记录，在不同电脑上查看的数据可能不一致。": "Token usage only includes records on this computer. Figures may differ between computers.",
     "会话输入框非空，未覆盖草稿、未发送": "The composer contains a draft. Nothing was overwritten or sent.",
     '页面就绪': 'Page ready', '删除选中的': 'Delete selected', '删除中…': 'Deleting…', '删除该自动化任务？': 'Delete this automation task?', '删除选中的自动化任务？': 'Delete selected automation tasks?', '删除后无法恢复。': 'This cannot be undone.', '清除': 'Clear', '清除日志': 'Clear logs', '清除运行日志？': 'Clear run logs?', '仅清除已结束的运行记录。': 'Only completed run records will be cleared.', '清除日志失败': 'Failed to clear logs', '任务已启用': 'Task enabled', '任务已停用': 'Task disabled', '发送中': 'Sending',
+    '鼠标悬浮显示成长计划': 'Show growth plan on hover',
     '成长计划读取中': 'Growth plan is loading', '成长计划暂不可用': 'Growth plan is unavailable',
     'Buddy 今日旅行已完成': 'Buddy finished traveling today', 'Buddy 旅行中': 'Buddy is traveling', 'Buddy 待领取礼物': 'Buddy gift pending', 'Buddy 已归来，待领奖': 'Buddy returned; reward pending', 'Buddy 在家': 'Buddy is home', 'Buddy 尚未解锁': 'Buddy is not unlocked',
     '成长任务': 'Growth tasks', '状态暂不可用': 'Status unavailable', '暂不可用': 'Unavailable', '今日旅行已完成': "Today's travel is complete", '旅行中，预计': 'Traveling, expected ', ' 归来': ' return', '旅行中': 'Traveling', '即将归来': 'Returning soon',
@@ -1811,6 +1815,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     '当前模型已触发频率限制，已停止自动发送': 'This model is rate limited; automatic sending stopped', '当前账号积分已耗尽': 'This account has no credits left', '模型：': 'Model: ',
     '无法打开安装程序': 'Could not open the installer',
     '安装程序已打开，请按提示退出 WorkBuddy 并完成安装。': 'The installer is open. Please quit WorkBuddy as prompted and finish installing.',
+    '安装程序已打开，请到任务栏选择安装窗口；按提示退出 WorkBuddy 后完成安装。': 'The installer is open. Select its window from the taskbar, then quit WorkBuddy as prompted to finish installing.',
     '停止旧服务…': 'Stopping old service…', '发现新版本，准备更新…': 'New version available; preparing to update…',
     '已应用主题「': 'Theme applied: “', '已恢复官方头像': 'Restored the official avatar', '已应用官方头像': 'Applied the official avatar',
     '头像已更新 ✓': 'Avatar updated ✓', '头像处理失败：': 'Avatar processing failed:',
@@ -1956,7 +1961,17 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     '切换中…': 'Switching…', 'Token 用量统计': 'Token usage statistics', ' 分钟后': ' minutes', ' 小时后': ' hours', ' 天后': ' days',
     '未设置时间': 'no expiry time', '时间': 'Time', '近 7 天': 'Last 7 days', '近 30 天': 'Last 30 days', '近 90 天': 'Last 90 days',
     '账号': 'Account', '全部账号': 'All accounts', '模型': 'Model', '全部模型': 'All models', '刷新': 'Refresh', '刷新统计': 'Refresh statistics', '开始日期': 'From', '结束日期': 'To',
-    '每日趋势': 'Daily trend', '暂无趋势数据': 'No trend data', '模型排行': 'Model ranking', ' 次': ' calls', '暂无模型数据': 'No model data', '暂无账号数据': 'No account data'
+    '每日趋势': 'Daily trend', '暂无趋势数据': 'No trend data', '模型排行': 'Model ranking', ' 次': ' calls', '暂无模型数据': 'No model data', '暂无账号数据': 'No account data',
+    // —— 第十六批：客户端调试端口丢失（官方自动更新后重启）状态页与一键恢复 ——
+    '检测到客户端需要恢复': 'Client recovery needed',
+    'WorkBuddy 正在运行，但未以调试模式启动（通常是官方自动更新后自行重启导致），WorkDaddy 无法注入面板。点击下方按钮将以调试模式重启客户端，恢复右下角机器人按钮。': 'WorkBuddy is running but was not started in debug mode (usually after an official auto-update restart), so WorkDaddy cannot inject the panel. Click the button below to relaunch the client in debug mode and restore the robot button.',
+    '重新启动客户端并恢复': 'Relaunch client and recover',
+    '正在重启客户端…': 'Relaunching client…',
+    '已发送重启指令，请等待客户端重新出现': 'Relaunch requested. Waiting for the client to come back.',
+    '恢复失败：': 'Recovery failed: ', '请求失败：': 'Request failed: ',
+    '客户端未在运行，无需重启': 'Client is not running; no relaunch needed',
+    // —— 第十六批：自动化「新建任务」指定工作区（daemon 侧校验/报错文案） ——
+    '工作区': 'Workspace', '(无)': '(none)',
   };
   function wbsSystemLanguage() {
     var value = String((navigator && (navigator.language || navigator.userLanguage)) || '').toLowerCase();
@@ -2224,6 +2239,10 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   var TOKEN_STATS_ICON =
     '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
     '<path d="M4 19V5M4 19h16"/><path d="m7 15 3-4 3 2 5-7"/></svg>';
+  // 用量统计刷新：环形箭头（线条风，currentColor 跟随主题）
+  var USAGE_REFRESH_ICON =
+    '<svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
+    '<path d="M20.5 12a8.5 8.5 0 1 1-2.3-5.8"/><path d="M20.5 4.5V9H16"/></svg>';
   // 脱敏小眼睛：睁眼 = 明文可见（点击后隐藏）；闭眼（斜线） = 已脱敏（点击后显示明文）
   var EYE_SVG =
     '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
@@ -5159,12 +5178,37 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       if (messageNavigation) messageNavigation.sync();
       scheduleForkButtons();
       scheduleFabPos();
+      if (typeof syncGlassComposerTriggerBackgrounds === 'function') syncGlassComposerTriggerBackgrounds();
       watchRow();
       syncStash(); // 页面切换（欢迎页↔聊天页）后立即重算暂存按钮显隐
       if (!findActionRow()) return;
       watchSend();
       syncQueueTags();
       wrapQueueReorder();
+    }
+    // 官方新版 teams 工具条会把背景直接写在 tooltip 触发器的元素样式上，
+    // 主题 CSS 即使带 !important 也可能被 React 重渲染后的内联值盖回去。
+    // 毛玻璃主题下按实际节点写入内联透明背景，并在节点重建时重新应用。
+    function syncGlassComposerTriggerBackgrounds() {
+      var html = document.documentElement;
+      var glass = html && html.getAttribute('data-wbs-theme-id') === 'nebula';
+      var selector = '.teams-container .cr-input-toolbar__right > span.cr-voice-trigger-tooltip,' +
+        '.teams-container .cr-input-toolbar__right > span.cr-context-usage-tooltip-trigger,' +
+        '.teams-container .cr-input-toolbar__right > span.cr-enhance-button-tooltip';
+      document.querySelectorAll(selector).forEach(function (node) {
+        if (glass) {
+          node.style.setProperty('background', 'transparent', 'important');
+          node.style.setProperty('background-color', 'transparent', 'important');
+          node.style.setProperty('box-shadow', 'none', 'important');
+          node.setAttribute('data-wbs-glass-trigger-patched', '1');
+        }
+        else if (node.getAttribute('data-wbs-glass-trigger-patched') === '1') {
+          node.style.removeProperty('background');
+          node.style.removeProperty('background-color');
+          node.style.removeProperty('box-shadow');
+          node.removeAttribute('data-wbs-glass-trigger-patched');
+        }
+      });
     }
     function onInputSync() { if (!alive) return; guardSessionChange(); scheduleFabPos(); syncStash(); syncQueueTags(); wrapQueueReorder(); }
     syncThemeAuditRoot();
@@ -5207,7 +5251,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     if (typeof MutationObserver !== 'undefined') {
       bodyObserver = new MutationObserver(scheduleDomChange);
       bodyObserver.observe(document.body, { childList: true, subtree: true });
+      var glassThemeObserver = new MutationObserver(syncGlassComposerTriggerBackgrounds);
+      glassThemeObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['data-wbs-theme-id'] });
+      registerDisposer(function () { glassThemeObserver.disconnect(); });
     }
+    syncGlassComposerTriggerBackgrounds();
     syncStash(); // 初始检查
     scheduleForkButtons();
     setBuildTimeout(wrapQueueReorder, 800);
@@ -5220,32 +5268,74 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     var fabSnapTimer = null;
     var FAB_DRAG_THRESHOLD = 6;
     var FAB_EDGE_GAP = 22;
-    // v2 deliberately ignores the pre-drag/anchor coordinates.  Those values
-    // could place the button at the top edge (where WorkBuddy's toolbar
-    // intercepts the hit), leaving a visible but unusable robot after upgrade.
-    var FAB_POSITION_KEY = 'wbs-fab-bottom-v2-' + PROFILE_ID;
-    var FAB_LEGACY_POSITION_KEY = 'wbs-fab-bottom-' + PROFILE_ID;
+    // The robot belongs to the conversation area, not to the window, so the
+    // anchor is that element's bottom-right corner. Anchoring to the component
+    // keeps the button beside the chat when the sidebar collapses, the window
+    // resizes, or a right-hand detail panel opens.
+    var FAB_ANCHOR_SELECTORS = [
+      '.teams-container.is-mac .conversation-shell',
+      '.conversation-shell',
+      '.conversation-shell__main',
+      '.teams-main-content',
+    ];
+    // v3 re-anchors the button to the conversation area. v2 stored a
+    // viewport-relative bottom offset, which parked the robot mid-screen
+    // (253px) even though it was asked to sit in the corner; that stale offset
+    // is dropped on purpose. The pre-drag v1 coordinates stay ignored for the
+    // reason recorded before: they could pin the robot under WorkBuddy's
+    // toolbar, leaving it visible but unusable after an upgrade.
+    var FAB_POSITION_KEY = 'wbs-fab-bottom-v3-' + PROFILE_ID;
+    var FAB_RETIRED_POSITION_KEYS = [
+      'wbs-fab-bottom-v2-' + PROFILE_ID,
+      'wbs-fab-bottom-' + PROFILE_ID,
+    ];
 
     function readFabBottom() {
       try {
         var raw = localStorage.getItem(FAB_POSITION_KEY);
         var value = Number(raw);
         if (raw !== null && raw !== '' && isFinite(value)) return value;
-        // Remove the old coordinate so a later downgrade/reinjection cannot
-        // immediately restore the broken top-edge position.
-        localStorage.removeItem(FAB_LEGACY_POSITION_KEY);
+        for (var i = 0; i < FAB_RETIRED_POSITION_KEYS.length; i++) {
+          // Drop retired coordinates so a downgrade/reinjection cannot restore
+          // a position whose reference point the anchor no longer means.
+          localStorage.removeItem(FAB_RETIRED_POSITION_KEYS[i]);
+        }
         return null;
       } catch (_) { return null; }
     }
 
+    function readFabAnchorNode() {
+      for (var i = 0; i < FAB_ANCHOR_SELECTORS.length; i++) {
+        var node = document.querySelector(FAB_ANCHOR_SELECTORS[i]);
+        if (!node) continue;
+        var rect = node.getBoundingClientRect();
+        if (rect && rect.width > 0 && rect.height > 0) return node;
+      }
+      return null;
+    }
+
+    // Distance from the viewport edges to the anchor's bottom-right corner plus
+    // the visual gap. Without a usable anchor the viewport corner is the floor.
+    function fabAnchorOffsets() {
+      var node = readFabAnchorNode();
+      if (!node) return { right: FAB_EDGE_GAP, bottom: FAB_EDGE_GAP };
+      var rect = node.getBoundingClientRect();
+      return {
+        right: Math.max(FAB_EDGE_GAP, Math.round(window.innerWidth - rect.right) + FAB_EDGE_GAP),
+        bottom: Math.max(FAB_EDGE_GAP, Math.round(window.innerHeight - rect.bottom) + FAB_EDGE_GAP),
+      };
+    }
+
     function clampFabBottom(bottom, height) {
-      var max = Math.max(FAB_EDGE_GAP, window.innerHeight - height - FAB_EDGE_GAP);
-      return Math.max(FAB_EDGE_GAP, Math.min(max, Number(bottom) || FAB_EDGE_GAP));
+      var floor = fabAnchorOffsets().bottom;
+      var max = Math.max(floor, window.innerHeight - height - FAB_EDGE_GAP);
+      return Math.max(floor, Math.min(max, Number(bottom) || floor));
     }
 
     function clampFabRight(right, width) {
-      var max = Math.max(FAB_EDGE_GAP, window.innerWidth - width - FAB_EDGE_GAP);
-      return Math.max(FAB_EDGE_GAP, Math.min(max, Number(right) || FAB_EDGE_GAP));
+      var floor = fabAnchorOffsets().right;
+      var max = Math.max(floor, window.innerWidth - width - FAB_EDGE_GAP);
+      return Math.max(floor, Math.min(max, Number(right) || floor));
     }
 
     function applyFabPosition(fab, right, bottom) {
@@ -5269,13 +5359,38 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         positionFab();
       });
     }
+    // The conversation area is rebuilt and resized by WorkBuddy (session
+    // switches, detail panel motion), so re-resolve the node and watch its box
+    // instead of trusting the element captured at injection time.
+    var fabAnchorObserver = null;
+    var fabAnchorObserverNode = null;
+    function ensureFabAnchorObserver() {
+      if (typeof ResizeObserver !== 'function') return;
+      var node = readFabAnchorNode();
+      if (node && node === fabAnchorObserverNode && node.isConnected) return;
+      if (fabAnchorObserver) fabAnchorObserver.disconnect();
+      fabAnchorObserverNode = node;
+      if (!node) return;
+      if (!fabAnchorObserver) {
+        fabAnchorObserver = new ResizeObserver(function () { scheduleFabPos(); });
+      }
+      fabAnchorObserver.observe(node);
+    }
+    registerDisposer(function () {
+      if (!fabAnchorObserver) return;
+      fabAnchorObserver.disconnect();
+      fabAnchorObserver = null;
+      fabAnchorObserverNode = null;
+    });
     function positionFab() {
       var fab = root.querySelector('.wbs-fab');
       if (!fab) return;
+      ensureFabAnchorObserver();
       if (fab.classList.contains('hidden')) return; // 面板打开时保持隐藏
       if (fabDrag) return;
+      var anchor = fabAnchorOffsets();
       var saved = readFabBottom();
-      applyFabPosition(fab, FAB_EDGE_GAP, saved == null ? FAB_EDGE_GAP : saved);
+      applyFabPosition(fab, anchor.right, saved == null ? anchor.bottom : saved);
     }
     setBuildTimeout(scheduleFabPos, 600); // 首屏定位
 
@@ -6436,6 +6551,19 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     function rotationReminderEnabled() {
       try { return localStorage.getItem(rotationReminderKey) !== '0'; } catch (_) { return true; }
     }
+    function accountNoteHoverEnabled() {
+      try { return localStorage.getItem(WBS_ACCOUNT_NOTE_HOVER_KEY) !== '0'; } catch (_) { return true; }
+    }
+    function growthPlanHoverEnabled() {
+      try { return localStorage.getItem(WBS_GROWTH_PLAN_HOVER_KEY) !== '0'; } catch (_) { return true; }
+    }
+    // 关闭「鼠标悬浮显示账号备注」后，悬浮账号名不应再露出编辑铅笔与提示底框，
+    // 否则悬浮看起来仍在响应。点击（aria-expanded）与键盘聚焦仍保留该操作提示。
+    function applyAccountNoteHoverState() {
+      if (!root) return;
+      root.classList.toggle('wbs-acct-note-hover-off', !accountNoteHoverEnabled());
+    }
+    applyAccountNoteHoverState();
     // 账号 pane 初始化：顶部 导出/导入 工具栏 + 列表容器 + 底部退出登录按钮（原 foot 的 logout 迁移到账号 tab）
     if (accountsPane) {
       accountsPane.innerHTML =
@@ -6566,12 +6694,17 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         '<div data-fixed-order>' +
         '<div class="wbs-account-order-list" role="list" aria-label="固定账号顺序"></div></div>' +
         '<label class="wbs-account-settings-toggle"><span>积分不足时的账号切换建议</span><span class="wbs-switch"><input type="checkbox" data-rotation-reminder><span class="wbs-switch-slider"></span></span></label>' +
+        '<div class="wbs-account-settings-section">悬浮窗口</div>' +
+        '<label class="wbs-account-settings-toggle"><span>鼠标悬浮显示账号备注</span><span class="wbs-switch"><input type="checkbox" data-account-note-hover><span class="wbs-switch-slider"></span></span></label>' +
+        '<label class="wbs-account-settings-toggle"><span>鼠标悬浮显示成长计划</span><span class="wbs-switch"><input type="checkbox" data-growth-plan-hover><span class="wbs-switch-slider"></span></span></label>' +
         '<div class="wbs-password-error" role="alert"></div><div class="wbs-modal-actions">' +
         '<button class="wbs-modal-btn" type="button" data-order-cancel>取消</button>' +
         '<button class="wbs-modal-btn wbs-modal-ok" type="button" data-order-save>保存</button></div></div>';
       panel.appendChild(mask);
       var list = mask.querySelector('.wbs-account-order-list');
       mask.querySelector('[data-rotation-reminder]').checked = rotationReminderEnabled();
+      mask.querySelector('[data-account-note-hover]').checked = accountNoteHoverEnabled();
+      mask.querySelector('[data-growth-plan-hover]').checked = growthPlanHoverEnabled();
       var busy = false, dragged = null;
       function close() {
         if (busy) return;
@@ -6649,6 +6782,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       mask.querySelector('[data-order-save]').addEventListener('click', function () {
         if (busy) return;
         var reminder = mask.querySelector('[data-rotation-reminder]').checked;
+        var noteHover = mask.querySelector('[data-account-note-hover]').checked;
+        var growthHover = mask.querySelector('[data-growth-plan-hover]').checked;
         busy = true;
         mask.querySelectorAll('button,input').forEach(function (node) { node.disabled = true; });
         mask.querySelector('[data-order-save]').textContent = '保存中…';
@@ -6658,7 +6793,12 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
             var ranks = new Map(); ordered.forEach(function (a, index) { ranks.set(a.uid, index + 1); });
             state.accounts.forEach(function (a) { a.sort = ranks.get(a.uid) || 0; });
             try { localStorage.setItem(rotationReminderKey, reminder ? '1' : '0'); } catch (_) {}
+            try { localStorage.setItem(WBS_ACCOUNT_NOTE_HOVER_KEY, noteHover ? '1' : '0'); } catch (_) {}
+            try { localStorage.setItem(WBS_GROWTH_PLAN_HOVER_KEY, growthHover ? '1' : '0'); } catch (_) {}
+            applyAccountNoteHoverState();
             if (!reminder) closeRotationNotice();
+            if (!noteHover && typeof closeAccountNotePopover === 'function') closeAccountNotePopover();
+            if (!growthHover && typeof closeDailyProgressPopover === 'function') closeDailyProgressPopover();
             sortAccountsByCreditExpiry(); reorderAccountCards();
             busy = false; close();
           }).catch(function (error) {
@@ -6955,7 +7095,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       }
       listen(accountsPane, 'mouseover', function (event) {
         var button = trigger(event.target);
-        if (button && !button.contains(event.relatedTarget)) show(button, false);
+        if (accountNoteHoverEnabled() && button && !button.contains(event.relatedTarget)) show(button, false);
       });
       listen(accountsPane, 'mouseout', function (event) {
         var button = trigger(event.target);
@@ -7066,7 +7206,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       setBuildInterval(updateDailyTravelCountdowns, 1000);
       listen(accountsPane, 'mouseover', function (event) {
         var ring = findRing(event.target);
-        if (!ring || ring === activeRing) return;
+        if (!growthPlanHoverEnabled() || !ring || ring === activeRing) return;
         show(ring, false);
       });
       listen(accountsPane, 'mouseout', function (event) {
@@ -7102,6 +7242,13 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       listen(popup, 'mouseleave', function () { dailyPopoverHovered = false; deferHide(); });
       listen(popup, 'pointerdown', function (event) { event.stopPropagation(); });
       listen(popup, 'click', function (event) {
+        var closeButton = event.target && event.target.closest ? event.target.closest('[data-wbs-daily-close]') : null;
+        if (closeButton && popup.contains(closeButton) && (!closeButton.hasAttribute || closeButton.hasAttribute('data-wbs-daily-close'))) {
+          event.preventDefault();
+          event.stopPropagation();
+          hide(true);
+          return;
+        }
         var button = event.target && event.target.closest ? event.target.closest('[data-wbs-growth-official],[data-wbs-claimed-toggle]') : null;
         if (!button || !popup.contains(button)) return;
         event.preventDefault();
@@ -7899,7 +8046,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       mask.id = 'wbs-token-stats-modal';
       mask.className = 'wbs-modal-mask wbs-usage-modal-mask';
       mask.innerHTML = '<div class="wbs-modal wbs-token-stats-modal" role="dialog" aria-modal="true" aria-labelledby="wbs-token-stats-title">' +
-        '<div class="wbs-usage-header"><div class="wbs-token-stats-head"><div class="wbs-modal-title" id="wbs-token-stats-title">用量统计</div></div>' +
+        '<div class="wbs-usage-header"><div class="wbs-token-stats-head"><div class="wbs-modal-title" id="wbs-token-stats-title">用量统计</div>' +
+        '<button class="wbs-icon-btn wbs-usage-refresh" type="button" data-usage-refresh title="刷新统计" aria-label="刷新统计">' + USAGE_REFRESH_ICON + '</button></div>' +
         '<div class="wbs-usage-tabs"><button type="button" class="active" data-usage-tab="credit">积分</button><button type="button" data-usage-tab="token">Token</button></div></div><div class="wbs-usage-scroll wbs-usage-dashboard">' +
         '<div data-usage-pane="token" hidden>' + usageTimeSegmentHtml('token') +
         '<div class="wbs-token-source-note">Token 用量仅统计本机记录，在不同电脑上查看的数据可能不一致。</div>' +
@@ -7910,6 +8058,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         '<div class="wbs-modal-actions"><button class="wbs-modal-btn" type="button" data-token-close>关闭</button></div></div>';
       root.appendChild(mask);
       var body = mask.querySelector('.wbs-token-stats-body');
+      var refreshButton = mask.querySelector('[data-usage-refresh]');
       var creditPollTimer = null;
       var focusBefore = document.activeElement;
       function closeStats() {
@@ -7928,6 +8077,11 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       }, true);
       registerDisposer(closeStats);
       mask.querySelector('[data-token-close]').addEventListener('click', closeStats);
+      // 刷新重跑当前页签的查询：Token 重新统计本机记录，积分重新查询官方用量。
+      refreshButton.addEventListener('click', function () {
+        if (mask.querySelector('[data-usage-tab].active').getAttribute('data-usage-tab') === 'credit') loadCredits();
+        else load(true);
+      });
       mask.addEventListener('click', function (event) { event.stopPropagation(); if (event.target === mask) closeStats(); });
       ['pointerdown', 'pointerup', 'keyup', 'keypress'].forEach(function (name) { mask.addEventListener(name, function (event) { event.stopPropagation(); }); });
       mask.addEventListener('keydown', function (event) {
@@ -8013,6 +8167,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         if (!busy) creditBody.style.visibility = '';
         creditSyncOverlay.hidden = !busy || !showOverlay;
         mask.querySelectorAll('[data-credit-days]').forEach(function (button) { button.disabled = busy; });
+        refreshButton.disabled = busy;
         mask.querySelector('.wbs-credit-query-content').setAttribute('aria-busy', String(busy));
       }
       function creditQueryFailed(message) {
@@ -8102,17 +8257,18 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
           });
         });
       });
-      function load() {
+      function load(force) {
         if (tokenBusy) return;
         tokenBusy = true;
         var serial = ++tokenReadSerial;
         mask.querySelectorAll('[data-token-days]').forEach(function (button) { button.disabled = true; });
+        refreshButton.disabled = true;
         overlay.hidden = false;
         body.innerHTML = '<div class="wbs-token-stats-loading" role="status">正在读取 Token 用量…</div>';
         if (firstLoadTimer) { clearTimeout(firstLoadTimer); firstLoadTimer = null; }
         var loadingLabel = overlay.querySelector('span');
         loadingLabel.hidden = true;
-        var query = '/api/token-stats?days=' + encodeURIComponent(usageDays('token'));
+        var query = '/api/token-stats?days=' + encodeURIComponent(usageDays('token')) + (force ? '&refresh=1' : '');
         api('/api/token-stats?cacheStatus=1').then(function (metadata) {
           if (!mask.isConnected || serial !== tokenReadSerial) return null;
           if (!metadata.cacheReady) {
@@ -8153,7 +8309,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
           }), { account: tokenNames, model: Object.create(null) }, tokenTrendState, formatTokenCount);
 
           hasStats = true;
-        }).catch(function (error) { if (!mask.isConnected || serial !== tokenReadSerial) return; if (hasStats) toast('读取失败：' + (error.message || error), true, root); else body.innerHTML = '<div class="wbs-token-stats-empty">读取失败：' + esc(error.message || error) + '</div>'; }).finally(function () { if (!mask.isConnected || serial !== tokenReadSerial) return; tokenBusy = false; if (firstLoadTimer) { clearTimeout(firstLoadTimer); firstLoadTimer = null; } mask.querySelectorAll('[data-token-days]').forEach(function (button) { button.disabled = false; }); overlay.hidden = true; });
+        }).catch(function (error) { if (!mask.isConnected || serial !== tokenReadSerial) return; if (hasStats) toast('读取失败：' + (error.message || error), true, root); else body.innerHTML = '<div class="wbs-token-stats-empty">读取失败：' + esc(error.message || error) + '</div>'; }).finally(function () { if (!mask.isConnected || serial !== tokenReadSerial) return; tokenBusy = false; if (firstLoadTimer) { clearTimeout(firstLoadTimer); firstLoadTimer = null; } mask.querySelectorAll('[data-token-days]').forEach(function (button) { button.disabled = false; }); refreshButton.disabled = false; overlay.hidden = true; });
       }
       if (mask.querySelector('[data-usage-tab].active').getAttribute('data-usage-tab') === 'credit') loadCredits(); else load();
     }
@@ -10831,8 +10987,10 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       });
     }
 
+    var windowsInstallerOpening = false;
     function openWindowsInstaller(prog, btn) {
-      if (!btn) return;
+      if (!btn || windowsInstallerOpening) return;
+      windowsInstallerOpening = true;
       btn.disabled = true;
       btn.textContent = '正在打开…';
       appendUpdateLog(prog, '正在打开已校验的安装程序…');
@@ -10843,8 +11001,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
           throw rejected;
         }
         btn.textContent = '安装程序已打开';
-        appendUpdateLog(prog, '安装程序已打开，请按提示退出 WorkBuddy 并完成安装。');
+        appendUpdateLog(prog, '安装程序已打开，请到任务栏选择安装窗口；按提示退出 WorkBuddy 后完成安装。');
       }).catch(function (error) {
+        windowsInstallerOpening = false;
         btn.disabled = false;
         btn.textContent = '打开安装程序';
         var failure = formatUpdateFailure(error, '无法打开安装程序');
@@ -10853,7 +11012,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       });
     }
 
-    function showWindowsInstallerReady(prog, btn, card, timer) {
+    function showWindowsInstallerReady(prog, btn, card, timer, keepDisabled) {
       if (timer) clearInterval(timer);
       appendUpdateLog(prog, '即将打开安装包…');
       var bar = card ? card.querySelector('#wbs-update-bar') : null;
@@ -10861,14 +11020,16 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       if (bar) bar.style.display = '';
       if (barFill) barFill.style.width = '100%';
       if (btn) {
-        btn.disabled = false;
+        btn.disabled = !!keepDisabled;
         btn.textContent = '打开安装程序';
-        btn.onclick = function () { openWindowsInstaller(prog, btn); };
+        btn.onclick = keepDisabled ? null : function () { openWindowsInstaller(prog, btn); };
       }
     }
 
     function openWindowsInstallerAfterDownload(prog, btn, card, timer, resolve, reject) {
-      showWindowsInstallerReady(prog, btn, card, timer);
+      if (windowsInstallerOpening) return;
+      windowsInstallerOpening = true;
+      showWindowsInstallerReady(prog, btn, card, timer, true);
       api('/api/update-apply', { method: 'POST' }).then(function (result) {
         if (!result || !result.ok || !result.opened) {
           var rejected = new Error(formatUpdateFailure(result, '无法打开安装程序'));
@@ -10882,6 +11043,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         }
         resolve(true);
       }).catch(function (error) {
+        windowsInstallerOpening = false;
         var failure = formatUpdateFailure(error, '无法打开安装程序');
         appendUpdateLog(prog, failure);
         try { toast(failure, true, root); } catch (_) {}
@@ -11410,7 +11572,20 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         else if (newlyOpened && typeof preloadAutomationDiscovery === 'function') preloadAutomationDiscovery().catch(function () {});
         if (newlyOpened && !(options && options.automation)) api('/api/automations/events', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ type: 'panelOpened' }) }).catch(function () {});
         if (newlyOpened) state.dailyProgressForceNext = true;
-        refresh();
+        var panelRefresh = refresh();
+        if (newlyOpened && CAPS.accounts) {
+          // Refresh every backup account after the initial snapshot. The daemon
+          // applies its daily keepalive/near-expiry policy and coalesces repeats;
+          // a second snapshot updates displayed expiry times after rotated tokens.
+          Promise.resolve(panelRefresh).then(function () {
+            return api('/api/accounts/refresh-tokens', {
+              method: 'POST', headers: { 'content-type': 'application/json' }, body: '{}',
+            });
+          }).then(function (result) {
+            if (!alive || !state.open || !result || Number(result.refreshed) <= 0) return;
+            refresh();
+          }).catch(function () {});
+        }
         checkForUpdate(); // 打开面板即检测更新（每次打开都强制查一次新版本）
         try { acCheckPromptOnOpen(); } catch (e) {} // 每次打开面板：指令块丢失则请求 daemon 补写（无 toast）
         try { syncSessionModule(); } catch (e) {} // 每次打开面板刷新会话模块（开关+快捷短语，含外部修改）
@@ -11473,7 +11648,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         }
         fab.classList.remove('is-dragging');
         fab.classList.add('is-snapping');
-        applyFabPosition(fab, FAB_EDGE_GAP, bottom);
+        applyFabPosition(fab, fabAnchorOffsets().right, bottom);
         syncAutomationStopPosition();
         try { localStorage.setItem(FAB_POSITION_KEY, String(Math.round(bottom))); } catch (_) {}
         fabDrag = null;
@@ -11708,6 +11883,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     var themeSelectionSerial = 0;
     function syncThemeSelection(id) {
       currentThemeId = ALLOWED_THEMES.indexOf(id) >= 0 ? id : 'default';
+      if (typeof syncGlassComposerTriggerBackgrounds === 'function') syncGlassComposerTriggerBackgrounds();
       if (themePane) themePane.querySelectorAll('#wbs-theme-seg input[name="wbs-theme"]').forEach(function (input) {
         input.checked = input.value === currentThemeId;
         input.closest('.wbs-theme-opt').classList.toggle('active', input.checked);
@@ -12375,10 +12551,12 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     var sessionDirtyUnsubscribe = null;
     var sessionDirtyRetryTimer = null;
     var sessionDirtyUid = '';
+    var sessionDirtyDisposed = false;
     api('/api/current').then(function (current) {
       sessionDirtyUid = String(current && current.uid || '').trim();
     }).catch(function () {});
-    var sessionDirtyTracker = createSessionDirtyTracker(function (payload) {
+    function sendSessionDirtyEvents(payload) {
+      if (sessionDirtyDisposed) return;
       var body = payload && Array.isArray(payload) ? { events: payload } : (payload || {});
       if (sessionDirtyUid) body.uid = sessionDirtyUid;
       api('/api/sessions/dirty', {
@@ -12386,7 +12564,39 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       }).catch(function () {});
-    });
+    }
+    var sessionDirtyTracker = createSessionDirtyTracker(sendSessionDirtyEvents);
+    // WorkBuddy 5.7.6 can expose an empty, silent sessionsResource. Keep the
+    // sidebar baseline separate so late resource snapshots cannot reset it.
+    var sessionDirtySidebarTracker = createSessionDirtyTracker(sendSessionDirtyEvents);
+    var sessionDirtySidebarSeen = Object.create(null);
+    var sessionDirtySidebarPrimed = false;
+    function pollSessionDirtySidebar() {
+      if (sessionDirtyDisposed || !WBS_COMPAT || typeof WBS_COMPAT.findConversationListRecords !== 'function') return;
+      var records;
+      try { records = WBS_COMPAT.findConversationListRecords(document); } catch (_) { return; }
+      if (!Array.isArray(records) || !records.length) return;
+      var updates = records.map(function (record) {
+        var value = record || {};
+        return {
+          id: String(value.id || value.sessionId || value.conversationId || '').trim(),
+          title: String(value.title || value.name || ''),
+          customTitle: String(value.customTitle || value.custom_title || ''),
+          updatedAt: Number(value.sortAt || value.updatedAt || value.updated_at || 0),
+        };
+      }).filter(function (update) { return !!update.id; });
+      if (!updates.length) return;
+      if (!sessionDirtySidebarPrimed) {
+        sessionDirtySidebarTracker.baseline(updates);
+        sessionDirtySidebarPrimed = true;
+      } else {
+        updates.forEach(function (update) {
+          update.event = sessionDirtySidebarSeen[update.id] ? 'sessionUpdated' : 'sessionCreated';
+          sessionDirtySidebarTracker.observe(update);
+        });
+      }
+      updates.forEach(function (update) { sessionDirtySidebarSeen[update.id] = true; });
+    }
     function sessionDirtyResourceRecords(resource) {
       if (!resource || typeof resource.list !== 'function') return null;
       try {
@@ -12414,11 +12624,19 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
         sessionDirtyTracker.observe(update);
       });
       var snapshot = sessionDirtyResourceRecords(resource);
-      if (snapshot) snapshot.then(function (records) { sessionDirtyTracker.baseline(records); }).catch(function () {});
+      if (snapshot) snapshot.then(function (records) {
+        if (!sessionDirtyDisposed) sessionDirtyTracker.baseline(records);
+      }).catch(function () {});
       return true;
     }
     bindSessionDirtyMonitor();
+    pollSessionDirtySidebar();
+    var sessionDirtySidebarTimer = setInterval(pollSessionDirtySidebar, 5000);
     registerDisposer(function () {
+      sessionDirtyDisposed = true;
+      clearInterval(sessionDirtySidebarTimer);
+      sessionDirtySidebarTracker.destroy();
+      sessionDirtySidebarSeen = Object.create(null);
       if (sessionDirtyRetryTimer) { clearTimeout(sessionDirtyRetryTimer); sessionDirtyRetryTimer = null; }
       if (typeof sessionDirtyUnsubscribe === 'function') {
         try { sessionDirtyUnsubscribe(); } catch (_) {}
@@ -15326,7 +15544,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
       var pad = function (value) { return String(value).padStart(2, '0'); };
       var refreshedAt = time && !isNaN(time.getTime()) ? pad(time.getHours()) + ':' + pad(time.getMinutes()) + ':' + pad(time.getSeconds()) : '尚未刷新';
       var spinner = refreshing ? '<i class="wbs-daily-refresh-spinner" aria-hidden="true"></i>' : '';
-      var head = '<div class="wbs-daily-popover-head"><strong>成长计划</strong><span class="wbs-daily-refresh-time">' + spinner + (time ? '刷新于 ' : '') + refreshedAt + '</span></div>';
+      var head = '<div class="wbs-daily-popover-head"><strong>成长计划</strong><span class="wbs-daily-popover-head-actions"><span class="wbs-daily-refresh-time">' + spinner + (time ? '刷新于 ' : '') + refreshedAt + '</span><button type="button" class="wbs-daily-popover-close" data-wbs-daily-close title="关闭成长计划" aria-label="关闭成长计划"><svg aria-hidden="true" viewBox="0 0 16 16"><path d="M3 3l10 10M13 3 3 13"/></svg></button></span></div>';
       if (!progress) return head + '<div class="wbs-daily-popover-empty">正在刷新成长计划与 Buddy 旅行状态…</div>';
       if (progress.status !== 'ready') return head + '<div class="wbs-daily-popover-empty">刷新失败，移开后再次悬浮即可重试</div>';
       var growth = progress.growth || {};
@@ -16912,8 +17130,8 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
   css.id = 'wbs-style';
   css.textContent = [
     '.wbs-root{position:fixed;right:22px;bottom:22px;z-index:2147483647;font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;font-size:13px;color:#1f1f1f;-webkit-font-smoothing:antialiased}',
-    '.wbs-root,.wbs-status-popover,.wbs-credit-summary-popover,#wbs-token-stats-modal{--wbs-primary:#22c55e;--wbs-primary-rgb:34,197,94;--wbs-primary-ink:#22c55e;--wbs-primary-soft:rgba(34,197,94,.09);--wbs-primary-soft-hover:rgba(34,197,94,.14)}',
-    'html[data-wbs-theme-id="dark"] .wbs-root,html[data-wbs-theme-id="dark"] .wbs-status-popover,html[data-wbs-theme-id="dark"] .wbs-credit-summary-popover,html[data-wbs-theme-id="dark"] #wbs-token-stats-modal,html[data-wbs-theme-id="cyber-purple"] .wbs-root,html[data-wbs-theme-id="cyber-purple"] .wbs-status-popover,html[data-wbs-theme-id="cyber-purple"] .wbs-credit-summary-popover,html[data-wbs-theme-id="cyber-purple"] #wbs-token-stats-modal,html[data-wbs-theme-id="nebula"] .wbs-root,html[data-wbs-theme-id="nebula"] .wbs-status-popover,html[data-wbs-theme-id="nebula"] .wbs-credit-summary-popover,html[data-wbs-theme-id="nebula"] #wbs-token-stats-modal,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) .wbs-root,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) .wbs-status-popover,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) .wbs-credit-summary-popover,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) #wbs-token-stats-modal{--wbs-primary:#7f77dd;--wbs-primary-rgb:127,119,221;--wbs-primary-ink:#7f77dd;--wbs-primary-soft:rgba(127,119,221,.12);--wbs-primary-soft-hover:rgba(127,119,221,.18)}',
+    '.wbs-root,.wbs-status-popover,.wbs-credit-summary-popover,#wbs-token-stats-modal{--wbs-primary:#22c55e;--wbs-primary-rgb:34,197,94;--wbs-primary-ink:#22c55e;--wbs-primary-soft:rgba(34,197,94,.09);--wbs-primary-soft-hover:rgba(34,197,94,.14);--wbs-series-2:#2563eb;--wbs-series-3:#d2760f;--wbs-series-4:#c026d3;--wbs-series-5:#0d9488;--wbs-series-6:#dc2626;--wbs-series-7:#7c3aed;--wbs-series-8:#7a9c1e;--wbs-series-9:#0891b2;--wbs-series-10:#7c2d12;--wbs-series-11:#db2777;--wbs-series-12:#57534e}',
+    'html[data-wbs-theme-id="dark"] .wbs-root,html[data-wbs-theme-id="dark"] .wbs-status-popover,html[data-wbs-theme-id="dark"] .wbs-credit-summary-popover,html[data-wbs-theme-id="dark"] #wbs-token-stats-modal,html[data-wbs-theme-id="cyber-purple"] .wbs-root,html[data-wbs-theme-id="cyber-purple"] .wbs-status-popover,html[data-wbs-theme-id="cyber-purple"] .wbs-credit-summary-popover,html[data-wbs-theme-id="cyber-purple"] #wbs-token-stats-modal,html[data-wbs-theme-id="nebula"] .wbs-root,html[data-wbs-theme-id="nebula"] .wbs-status-popover,html[data-wbs-theme-id="nebula"] .wbs-credit-summary-popover,html[data-wbs-theme-id="nebula"] #wbs-token-stats-modal,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) .wbs-root,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) .wbs-status-popover,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) .wbs-credit-summary-popover,:is(html[data-theme="dark"],html.cb-dark,body[data-vscode-theme-name*="dark" i]) #wbs-token-stats-modal{--wbs-primary:#7f77dd;--wbs-primary-rgb:127,119,221;--wbs-primary-ink:#7f77dd;--wbs-primary-soft:rgba(127,119,221,.12);--wbs-primary-soft-hover:rgba(127,119,221,.18);--wbs-series-2:#62a8ff;--wbs-series-3:#f0a347;--wbs-series-4:#d959e8;--wbs-series-5:#3ff3e3;--wbs-series-6:#e64c4c;--wbs-series-7:#9a63f7;--wbs-series-8:#b6de5a;--wbs-series-9:#38d4fa;--wbs-series-10:#c9805c;--wbs-series-11:#f071a8;--wbs-series-12:#9f9a93}',
     '.wbs-session-usage-summary{position:fixed;z-index:20;display:flex;align-items:center;justify-content:flex-start;gap:10px;box-sizing:border-box;min-height:37px;padding:3px 0 2px;border:0;border-radius:0;background:transparent;color:var(--wb-color-text-primary,#1f1f1f);font-size:14px;font-weight:400;line-height:18px;outline:none;cursor:pointer}',
     '.wbs-session-usage-summary:hover,.wbs-session-usage-summary:focus-visible{background:transparent}',
     '.wbs-session-usage-summary.is-hidden{visibility:hidden;opacity:0;pointer-events:none}',
@@ -17104,7 +17322,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     '.wbs-row1{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:7px;min-height:26px}',
     '.wbs-name-group{display:flex;align-items:center;flex-wrap:wrap;gap:6px;min-width:0}.wbs-checkin-slot{display:inline-flex;align-items:center;flex-wrap:wrap;gap:5px}',
     '.wbs-name{font-size:14px;font-weight:600;color:var(--wb-color-text-primary,#1f1f1f)}',
-    '.wbs-account-name{position:relative;display:inline-flex;align-items:center;min-width:0;max-width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;text-align:left;cursor:pointer;isolation:isolate}.wbs-account-name .wbs-name{position:relative;z-index:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wbs-account-name:before{content:"";position:absolute;inset:-4px -5px;border:1px solid var(--wb-border-subtle,#e5e7eb);border-radius:7px;background:var(--wb-bg-popover,#fff);box-shadow:0 2px 7px rgba(0,0,0,.08);opacity:0;transition:opacity 200ms ease;pointer-events:none}.wbs-account-name-edit{position:absolute;right:0;top:50%;z-index:2;display:flex;align-items:center;justify-content:center;width:20px;max-width:100%;height:20px;border-radius:3px;background:var(--wb-bg-popover,#fff);color:var(--wb-icon-secondary,#666);opacity:0;transform:translateY(-50%);transition:opacity 200ms ease;pointer-events:none}.wbs-account-name-edit svg{width:13px;height:13px}.wbs-account-name:hover,.wbs-account-name:focus-visible,.wbs-account-name[aria-expanded="true"]{z-index:2}.wbs-account-name:hover:before,.wbs-account-name:focus-visible:before,.wbs-account-name[aria-expanded="true"]:before{opacity:1}.wbs-account-name:hover .wbs-account-name-edit,.wbs-account-name:focus-visible .wbs-account-name-edit,.wbs-account-name[aria-expanded="true"] .wbs-account-name-edit{opacity:1;pointer-events:auto}.wbs-account-name-edit:hover{color:var(--wb-color-text-primary,#1f1f1f)}.wbs-account-name:focus-visible{outline:2px solid var(--wb-accent-primary,var(--wb-color-text-primary,#1f1f1f));outline-offset:4px;border-radius:4px}',
+    '.wbs-account-name{position:relative;display:inline-flex;align-items:center;min-width:0;max-width:100%;margin:0;padding:0;border:0;background:transparent;font:inherit;text-align:left;cursor:pointer;isolation:isolate}.wbs-account-name .wbs-name{position:relative;z-index:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wbs-account-name:before{content:"";position:absolute;inset:-4px -5px;border:1px solid var(--wb-border-subtle,#e5e7eb);border-radius:7px;background:var(--wb-bg-popover,#fff);box-shadow:0 2px 7px rgba(0,0,0,.08);opacity:0;transition:opacity 200ms ease;pointer-events:none}.wbs-account-name-edit{position:absolute;right:0;top:50%;z-index:2;display:flex;align-items:center;justify-content:center;width:20px;max-width:100%;height:20px;border-radius:3px;background:var(--wb-bg-popover,#fff);color:var(--wb-icon-secondary,#666);opacity:0;transform:translateY(-50%);transition:opacity 200ms ease;pointer-events:none}.wbs-account-name-edit svg{width:13px;height:13px}.wbs-account-name:hover,.wbs-account-name:focus-visible,.wbs-account-name[aria-expanded="true"]{z-index:2}.wbs-account-name:hover:before,.wbs-account-name:focus-visible:before,.wbs-account-name[aria-expanded="true"]:before{opacity:1}.wbs-account-name:hover .wbs-account-name-edit,.wbs-account-name:focus-visible .wbs-account-name-edit,.wbs-account-name[aria-expanded="true"] .wbs-account-name-edit{opacity:1;pointer-events:auto}.wbs-account-name-edit:hover{color:var(--wb-color-text-primary,#1f1f1f)}.wbs-root.wbs-acct-note-hover-off .wbs-account-name:hover:not(:focus-visible):not([aria-expanded="true"]) .wbs-account-name-edit{opacity:0;pointer-events:none}.wbs-root.wbs-acct-note-hover-off .wbs-account-name:hover:not(:focus-visible):not([aria-expanded="true"]):before{opacity:0}.wbs-account-name:focus-visible{outline:2px solid var(--wb-accent-primary,var(--wb-color-text-primary,#1f1f1f));outline-offset:4px;border-radius:4px}',
     '.wbs-account-note-popover{position:fixed;z-index:2147483647;box-sizing:border-box;width:280px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow:auto;padding:10px;border:1px solid var(--wb-border-subtle,#e5e7eb);border-radius:12px;background:color-mix(in srgb,var(--wb-bg-popover,#fff) 94%,transparent);backdrop-filter:blur(18px);-webkit-backdrop-filter:blur(18px);box-shadow:0 10px 30px rgba(0,0,0,.16);color:var(--wb-color-text-primary,#1f1f1f);font:12px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;overscroll-behavior:contain}.wbs-account-note-popover[hidden]{display:none}.wbs-account-note-head{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:7px;font-weight:600}.wbs-account-note-head .wbs-icon-btn{width:22px;height:22px}.wbs-account-note-popover textarea{display:block;box-sizing:border-box;width:100%;min-height:86px;max-height:180px;resize:vertical;padding:8px;border:1px solid var(--wb-border-default,#ddd);border-radius:8px;background:var(--wb-bg-secondary,#f7f8fa);color:inherit;font:inherit;line-height:1.6;overflow-wrap:anywhere;user-select:text}.wbs-account-note-popover textarea::placeholder{color:var(--wb-color-text-secondary,#777)}.wbs-account-note-popover textarea:focus-visible,.wbs-account-note-popover button:focus-visible{outline:2px solid var(--wb-accent-primary,var(--wb-color-text-primary,#1f1f1f));outline-offset:2px}.wbs-account-note-footer{display:flex;align-items:center;gap:6px;margin-top:9px}.wbs-account-note-footer [role="status"]{flex:1;min-width:0;overflow-wrap:anywhere;font-size:11px;color:var(--wb-color-text-secondary,#666)}.wbs-account-note-footer .wbs-modal-btn{flex:none;padding:4px 9px;font-size:11px}.wbs-account-note-footer .primary{background:var(--wb-button-primary-bg,#1f1f1f);border-color:var(--wb-button-primary-bg,#1f1f1f);color:var(--wb-button-primary-fg,#fff)}.wbs-account-note-footer .primary:hover:not(:disabled){background:var(--wb-button-primary-bg-hover,var(--wb-button-primary-bg,#333))}.wbs-account-note-footer button:disabled{opacity:.45;cursor:default}',
     ':is(html.cb-dark,html[data-theme="dark"],body[data-vscode-theme-name*="dark" i]) .wbs-account-note-popover{background:color-mix(in srgb,var(--wb-bg-popover,#202126) 94%,transparent);border-color:var(--wb-border-subtle,#3c3e45);color:var(--wb-color-text-primary,#f2f3f5)}:is(html.cb-dark,html[data-theme="dark"],body[data-vscode-theme-name*="dark" i]) .wbs-account-name:before{background:var(--wb-bg-popover,#202126);border-color:var(--wb-border-subtle,#3c3e45)}:is(html.cb-dark,html[data-theme="dark"],body[data-vscode-theme-name*="dark" i]) .wbs-account-name-edit{background:var(--wb-bg-popover,#202126)}:is(html.cb-dark,html[data-theme="dark"],body[data-vscode-theme-name*="dark" i]) .wbs-account-note-popover textarea{background:var(--wb-bg-secondary,#292b31);border-color:var(--wb-border-default,#454750)}:is(html.cb-dark,html[data-theme="dark"],body[data-vscode-theme-name*="dark" i]) :is(.wbs-account-note-footer [role="status"],.wbs-account-name-edit){color:var(--wb-color-text-secondary,#b9bdc7)}',
     '@media(prefers-reduced-motion:reduce){.wbs-account-name:before,.wbs-account-name-edit{transition:none}}',
@@ -17118,6 +17336,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     '.wbs-status-popover{position:fixed;z-index:2147483647;width:306px;box-sizing:border-box;padding:12px;border:1px solid var(--wb-border-subtle,rgba(20,24,32,.14));border-radius:11px;background:color-mix(in srgb,var(--wb-bg-popover,#fff) 96%,transparent);color:var(--wb-color-text-primary,#1f1f1f);box-shadow:0 16px 42px rgba(20,24,32,.16),inset 0 1px 0 rgba(255,255,255,.5);backdrop-filter:blur(20px) saturate(1.08);-webkit-backdrop-filter:blur(20px) saturate(1.08);font:12px/1.45 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;pointer-events:auto}.wbs-status-popover.is-daily{width:620px;max-width:calc(100vw - 16px);max-height:calc(100vh - 16px);overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none}',
     '.wbs-status-popover.is-daily::-webkit-scrollbar,.wbs-growth-task-list::-webkit-scrollbar{display:none}',
     '.wbs-status-popover.is-passive{pointer-events:none}.wbs-status-popover.is-credit{height:auto;min-height:0;max-height:calc(100vh - 16px);overflow:auto;overflow-wrap:anywhere}.wbs-status-popover[hidden]{display:none!important}.wbs-daily-popover-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:9px}.wbs-daily-popover-head strong{font-size:13px;font-weight:700;white-space:nowrap}.wbs-daily-popover-head span{color:var(--wb-icon-tertiary,#7c818b);font-size:10px;font-variant-numeric:tabular-nums}.wbs-daily-refresh-time{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}',
+    '.wbs-daily-popover-head-actions{display:inline-flex;min-width:0;align-items:center;justify-content:flex-end;gap:6px}.wbs-daily-popover-close{display:inline-flex;width:22px;height:22px;flex:0 0 22px;align-items:center;justify-content:center;padding:0;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--wb-icon-secondary,var(--wb-color-text-secondary,#666));cursor:pointer}.wbs-daily-popover-close:hover{background:var(--wb-bg-hover,rgba(127,127,127,.12));color:var(--wb-color-text-primary,#1f1f1f)}.wbs-daily-popover-close:focus-visible{outline:2px solid var(--wb-accent-blue,var(--wb-color-text-primary,#1f1f1f));outline-offset:1px}.wbs-daily-popover-close svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}',
     '.wbs-daily-refresh-spinner{width:9px;height:9px;box-sizing:border-box;border:1.5px solid color-mix(in srgb,var(--wbs-ring-growth) 25%,transparent);border-top-color:var(--wbs-ring-growth);border-radius:50%;animation:wbs-daily-spin .72s linear infinite}@keyframes wbs-daily-spin{to{transform:rotate(360deg)}}',
     '.wbs-daily-detail{display:grid;grid-template-columns:8px 72px minmax(0,1fr);align-items:center;gap:7px;min-height:31px;margin-top:5px;padding:0 9px;border:1px solid var(--wb-border-subtle,rgba(20,24,32,.1));border-radius:8px;background:color-mix(in srgb,var(--wb-bg-secondary,#f6f7f8) 72%,transparent)}',
     '.wbs-daily-detail i,.wbs-credit-tip-value i{display:block;width:8px;height:8px;border-radius:50%;background:currentColor;box-shadow:0 0 0 2px color-mix(in srgb,currentColor 17%,transparent)}.wbs-daily-detail i.growth{color:var(--wbs-ring-growth)}.wbs-daily-detail i.cat{color:var(--wbs-ring-cat)}.wbs-daily-detail i.credit{color:var(--wbs-tip-credit)}.wbs-daily-detail>span{color:var(--wb-color-text-secondary,#5f6368);white-space:nowrap}.wbs-daily-detail b{min-width:0;text-align:right;font-size:11px;font-weight:650;overflow-wrap:anywhere}.wbs-daily-detail.cat-row b{white-space:nowrap;font-variant-numeric:tabular-nums}.wbs-daily-cat-value{display:flex;min-width:0;align-items:center;justify-content:flex-end;gap:8px}.wbs-travel-claim{flex:0 0 auto}',
@@ -17182,7 +17401,9 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     // Keep the theme hue, but lift dark fills above the empty gray vessel.
     '@supports (color:oklch(from black l c h)){.wbs-daily-rings{--wbs-liquid-fill:oklch(from var(--wb-button-primary-bg) max(l,.62) c h / 1)}}',
     'html:not(.cb-dark):not([data-theme="dark"]):is([data-wbs-theme-id="default"],:not([data-wbs-theme-id])) body:not([data-vscode-theme-name*="dark" i]) .wbs-daily-rings{--wbs-liquid-fill:var(--wbs-credit-theme-color,var(--wbs-primary))}',
-    ':is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings,:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-checkin-tag.ok{--wbs-badge-bg:rgba(255,255,255,.085);--wbs-badge-fg:var(--wb-color-text-primary,#f6f5ff);background:var(--wbs-badge-bg);border:1px solid rgba(255,255,255,.12);color:var(--wbs-badge-fg);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(12px) saturate(1.08);-webkit-backdrop-filter:blur(12px) saturate(1.08)}:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings{--wbs-liquid-bg:rgba(255,255,255,.12);--wbs-liquid-ink:#f6f5ff}:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings:hover,:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings[aria-expanded="true"]{background:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 3px 10px rgba(0,0,0,.12)}',
+    // CodeBuddy's light panel must not inherit the host renderer's dark badge palette.
+    '.wbs-panel-light .wbs-daily-rings,[data-wbs-appearance="light"] .wbs-daily-rings{--wbs-liquid-fill:var(--wbs-credit-theme-color,var(--wbs-primary))}',
+    ':is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings:not(:where([data-wbs-appearance="light"] *,.wbs-panel-light *)),:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-checkin-tag.ok:not(:where([data-wbs-appearance="light"] *,.wbs-panel-light *)){--wbs-badge-bg:rgba(255,255,255,.085);--wbs-badge-fg:var(--wb-color-text-primary,#f6f5ff);background:var(--wbs-badge-bg);border:1px solid rgba(255,255,255,.12);color:var(--wbs-badge-fg);box-shadow:inset 0 1px 0 rgba(255,255,255,.08);backdrop-filter:blur(12px) saturate(1.08);-webkit-backdrop-filter:blur(12px) saturate(1.08)}:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings:not(:where([data-wbs-appearance="light"] *,.wbs-panel-light *)){--wbs-liquid-bg:rgba(255,255,255,.12);--wbs-liquid-ink:#f6f5ff}:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings:not(:where([data-wbs-appearance="light"] *,.wbs-panel-light *)):hover,:is(html.cb-dark,html[data-theme="dark"],html[data-wbs-theme-id="dark"],html[data-wbs-theme-id="cyber-purple"],html[data-wbs-theme-id="nebula"],body[data-vscode-theme-name*="dark" i]) .wbs-daily-rings:not(:where([data-wbs-appearance="light"] *,.wbs-panel-light *))[aria-expanded="true"]{background:rgba(255,255,255,.14);box-shadow:inset 0 1px 0 rgba(255,255,255,.1),0 3px 10px rgba(0,0,0,.12)}',
     '.wbs-checkin-tag.fail{background:rgba(239,68,68,.1);color:#dc2626}',
     '.wbs-model-rate-limit-slot{display:inline-flex;align-items:center;min-width:0}.wbs-model-rate-limit{appearance:none;-webkit-appearance:none;font:inherit;cursor:pointer;transition:background-color .15s,box-shadow .15s,color .15s}.wbs-model-rate-limit:hover,.wbs-model-rate-limit[aria-expanded="true"]{background:color-mix(in srgb,var(--wbs-badge-bg) 84%,white);box-shadow:0 2px 8px rgba(0,0,0,.14)}.wbs-model-rate-limit:focus-visible{outline:2px solid color-mix(in srgb,var(--wbs-badge-bg) 45%,transparent);outline-offset:2px}',
     '.wbs-status-popover.is-rate-limit{width:500px;max-width:calc(100vw - 16px);overflow-x:auto}.wbs-status-popover.is-rate-limit-summary{width:360px;max-width:calc(100vw - 16px);overflow-x:auto}.wbs-model-rate-limit-detail{grid-template-columns:8px auto minmax(0,1fr) auto auto;gap:7px}.wbs-model-rate-limit-detail b{white-space:nowrap;overflow-wrap:normal}.wbs-model-rate-limit-detail .wbs-model-rate-limit-model{text-align:left}.wbs-model-rate-limit-detail i.rate-limit{color:var(--wb-color-text-primary,#1f1f1f)}.wbs-model-rate-limit-account-group{padding:7px 0 2px;border-top:1px solid var(--wb-border-subtle,rgba(20,24,32,.1))}.wbs-model-rate-limit-account-group:first-of-type{padding-top:0;border-top:0}.wbs-model-rate-limit-account-head{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 2px 2px}.wbs-model-rate-limit-account-head strong{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:12px}.wbs-model-rate-limit-account-head span{flex:0 0 auto;color:var(--wb-icon-tertiary,#7c818b);font-size:10px;white-space:nowrap}.wbs-model-rate-limit-summary-row{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,auto);align-items:center;gap:7px;min-height:28px;margin-top:4px;padding:0 8px;border:1px solid var(--wb-border-subtle,rgba(20,24,32,.1));border-radius:8px;background:color-mix(in srgb,var(--wb-bg-secondary,#f6f7f8) 72%,transparent)}.wbs-model-rate-limit-summary-row>span{color:var(--wb-color-text-secondary,#5f6368);white-space:nowrap}.wbs-model-rate-limit-summary-row>b{min-width:0;font-size:11px;font-weight:650;white-space:nowrap;overflow-wrap:normal}.wbs-model-rate-limit-summary-row .wbs-model-rate-limit-model{text-align:left}.wbs-model-rate-limit-summary-row .wbs-model-rate-limit-reset{text-align:right}',
@@ -17203,7 +17424,7 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     '.wbs-icon-btn:disabled{opacity:.5;cursor:not-allowed}',
     /* 版本标签（昵称旁：个人版 / 企业名称）：低饱和浅灰，信息次要不抢眼；深色主题单独适配 */
     '.wbs-badge{display:inline-flex;align-items:center;font-size:10px;line-height:1;padding:2px 7px;border-radius:999px;flex-shrink:1;min-width:0;max-width:112px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500;background:var(--wb-bg-tertiary,#eef0f3);color:var(--wb-color-text-secondary,#5f6368);border:1px solid transparent}',
-    'html.cb-dark .wbs-badge,html[data-theme="dark"] .wbs-badge{background:rgba(255,255,255,.07);color:rgba(235,236,240,.68);border-color:rgba(255,255,255,.08)}',
+    'html.cb-dark .wbs-badge:not(:where([data-wbs-appearance="light"] *,.wbs-panel-light *)),html[data-theme="dark"] .wbs-badge:not(:where([data-wbs-appearance="light"] *,.wbs-panel-light *)){background:rgba(255,255,255,.07);color:rgba(235,236,240,.68);border-color:rgba(255,255,255,.08)}',
     /* 当前使用中角标：无底图形，颜色跟随昵称（text-primary），深色随变量自动适配 */
     '.wbs-empty{text-align:center;color:var(--wb-icon-tertiary,#999);padding:28px 12px;font-size:13px;line-height:1.8}',
     /* 底部 */
@@ -17757,14 +17978,16 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     /* 账号列表容器 + 退出按钮 */
     '.wbs-acct-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px 9px;border-bottom:1px solid var(--wb-border-subtle,#f0f0f0);background:color-mix(in srgb,var(--wb-bg-secondary,#fff) 25%,transparent);flex-shrink:0}',
     '#wbs-account-order-mask{pointer-events:auto;overscroll-behavior:contain}',
-    '.wbs-account-order-modal{box-sizing:border-box;width:360px;max-width:calc(100% - 28px);max-height:calc(100% - 28px);display:flex;flex-direction:column;overflow:auto}',
-    '.wbs-account-settings-section{font-size:11px;font-weight:600;color:var(--wb-color-text-secondary,#666);margin:8px 0 6px}',
-    '.wbs-account-settings-toggle{display:flex;align-items:center;justify-content:space-between;gap:12px;margin:12px 0 6px;padding:10px 0;border-top:1px solid var(--wb-border-subtle,#eee);border-bottom:1px solid var(--wb-border-subtle,#eee);font-size:12px;cursor:pointer}.wbs-account-settings-toggle>span:first-child{min-width:0;line-height:1.4}',
-    '.wbs-account-order-modes{display:flex;flex-wrap:wrap;gap:10px 16px;font-size:12px}.wbs-account-order-modes label{display:flex;align-items:center;gap:5px;cursor:pointer}.wbs-account-order-modes input{margin:0;accent-color:var(--wb-button-primary-bg)}',
+    '.wbs-account-order-modal{box-sizing:border-box;width:380px;max-width:calc(100% - 28px);max-height:calc(100% - 28px);display:flex;flex-direction:column;overflow:auto;gap:0}.wbs-account-order-modal>.wbs-modal-title{margin-bottom:3px}',
+    '.wbs-account-settings-section{margin:14px 0 7px;padding-bottom:5px;border-bottom:1px solid var(--wb-border-subtle,#eee);font-size:11px;font-weight:650;line-height:1.35;color:var(--wb-color-text-secondary,#666)}.wbs-account-order-modal>.wbs-modal-title+.wbs-account-settings-section{margin-top:2px}',
+    '.wbs-account-settings-toggle{display:flex;align-items:center;justify-content:space-between;gap:14px;min-height:38px;margin:0 0 6px;padding:7px 9px;border:1px solid var(--wb-border-subtle,#eee);border-radius:8px;background:color-mix(in srgb,var(--wb-bg-secondary,#fff) 42%,transparent);font-size:12px;cursor:pointer}.wbs-account-settings-toggle>span:first-child{min-width:0;line-height:1.45;overflow-wrap:anywhere}.wbs-account-settings-toggle .wbs-switch{flex:0 0 auto}.wbs-account-order-modal [data-fixed-order]+.wbs-account-settings-toggle{margin-top:14px}',
+    '.wbs-account-order-modes{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px;font-size:12px}.wbs-account-order-modes label{display:flex;min-width:0;align-items:center;gap:7px;padding:8px 9px;border:1px solid var(--wb-border-subtle,#eee);border-radius:8px;background:color-mix(in srgb,var(--wb-bg-secondary,#fff) 42%,transparent);cursor:pointer;line-height:1.35}.wbs-account-order-modes label:has(input:checked){border-color:var(--wb-button-primary-bg,#1f1f1f);background:color-mix(in srgb,var(--wb-button-primary-bg,#1f1f1f) 8%,transparent)}.wbs-account-order-modes input{margin:0;accent-color:var(--wb-button-primary-bg);flex:0 0 auto}',
 
-    '.wbs-account-order-list{margin-top:12px;max-height:min(280px,40vh);overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:5px}',
+    '.wbs-account-order-list{margin-top:9px;padding:1px;max-height:min(280px,40vh);overflow:auto;overscroll-behavior:contain;display:flex;flex-direction:column;gap:5px}',
     '.wbs-account-order-row{display:flex;align-items:center;gap:8px;min-height:34px;padding:3px 8px;border:1px solid var(--wb-border-subtle);border-radius:8px;background:var(--wb-bg-secondary);font-size:12px}.wbs-account-order-row>span{flex:1;min-width:0;overflow-wrap:anywhere}.wbs-account-order-row button{cursor:grab}.wbs-account-order-row.dragging{opacity:.45}.wbs-account-order-row.drop-target{border-color:var(--wb-accent-blue);background:var(--wb-bg-hover)}',
-    '.wbs-account-order-modal :is(button,input):focus-visible{outline:2px solid var(--wb-accent-blue);outline-offset:2px}.wbs-account-order-modal button:disabled{opacity:.5;cursor:default}',
+    '.wbs-account-order-modal>.wbs-modal-actions{margin-top:14px;padding-top:10px;border-top:1px solid var(--wb-border-subtle,#eee)}.wbs-account-order-modal :is(button,input):focus-visible{outline:2px solid var(--wb-accent-blue);outline-offset:2px}.wbs-account-order-modal button:disabled{opacity:.5;cursor:default}',
+    '@media(max-width:420px){.wbs-account-order-modal{width:100%;max-width:calc(100% - 20px)}.wbs-account-order-modes{grid-template-columns:1fr}}',
+    'html[data-wbs-theme-id="nebula"] .wbs-account-note-footer .primary{background:rgba(255,255,255,.9) !important;border-color:rgba(255,255,255,.9) !important;color:#11121a !important}.wbs-account-note-footer .primary:focus-visible{outline-color:var(--wb-color-text-primary,#1f1f1f)}html[data-wbs-theme-id="nebula"] .wbs-account-note-footer .primary:disabled{background:rgba(255,255,255,.78) !important;border-color:rgba(255,255,255,.78) !important;color:#34343c !important;opacity:1 !important}',
     '.wbs-initial-sync-modal{box-sizing:border-box;width:380px;max-width:calc(100% - 28px)}.wbs-initial-sync-copy{margin:-2px 0 12px;color:var(--wb-color-text-secondary,#666);font-size:11.5px;line-height:1.6;overflow-wrap:anywhere}.wbs-initial-sync-toggle{margin:0 0 10px}.wbs-initial-sync-error{min-height:17px;margin:0 0 2px}.wbs-initial-sync-modal .wbs-modal-actions{justify-content:flex-end}.wbs-initial-sync-modal .wbs-modal-ok{min-width:66px}',
     '.wbs-credit-summary-popover{position:fixed;z-index:2147483647;box-sizing:border-box;width:300px;max-width:calc(100vw - 16px);padding:12px;background:var(--wb-bg-popover,var(--wb-bg-primary));color:var(--wb-color-text-primary);border:1px solid var(--wb-border-default);border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,.18);font:12px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:transparent transparent;pointer-events:auto}',
     '.wbs-credit-summary-head{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:10px}.wbs-credit-summary-head strong{font-size:13px}.wbs-credit-summary-head span,.wbs-credit-summary-foot{font-size:10px;color:var(--wb-color-text-secondary)}',
@@ -17853,10 +18076,15 @@ if (typeof window !== 'undefined' && typeof document !== 'undefined') {
     '.wbs-token-stats-modal{width:min(980px,calc(100vw - 48px));max-width:calc(100vw - 48px);height:min(84vh,800px);max-height:calc(100vh - 48px);display:flex;flex-direction:column;overflow:hidden;border:1px solid var(--wb-border-default,rgba(20,24,32,.14));border-radius:16px;padding:0;box-shadow:0 24px 80px rgba(15,18,24,.22)}',
     '.wbs-usage-header{position:sticky;top:0;z-index:4;flex-shrink:0;padding:20px 22px 0;border-bottom:1px solid var(--wb-border-subtle,#eee);background:color-mix(in srgb,var(--wb-bg-popover,#fff) 94%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px)}.wbs-usage-scroll{min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;flex:1;padding:8px 22px 22px}.wbs-usage-dashboard{scrollbar-width:none}.wbs-usage-dashboard::-webkit-scrollbar{display:none}.wbs-token-stats-modal>.wbs-modal-actions{flex-shrink:0;padding:13px 22px;border-top:1px solid var(--wb-border-subtle,#eee);background:var(--wb-bg-popover,#fff)}.wbs-token-stats-modal .wbs-token-model-scroll{overflow:visible}.wbs-token-stats-modal .wbs-token-model-scroll:after{display:none}.wbs-credit-query-content{position:relative;min-height:430px}',
     '.wbs-token-stats-head{display:flex;align-items:center;justify-content:space-between;gap:10px}',
+    '.wbs-usage-refresh{flex:0 0 auto}',
+    '.wbs-usage-refresh:hover:not(:disabled){background:var(--wb-bg-tertiary,#e6e8ec);color:var(--wb-color-text-primary,#1f1f1f)}',
+    '.wbs-usage-refresh:focus-visible{outline:2px solid currentColor;outline-offset:2px}',
     '.wbs-token-source-note{margin:0 0 12px;font-size:11px;line-height:1.6;color:var(--wb-icon-secondary,#667085);overflow-wrap:anywhere}',
     '.wbs-usage-tabs{display:flex;gap:18px;margin:13px 0 0;border-bottom:1px solid var(--wb-border-subtle,#eee)}.wbs-usage-tabs button{border:0;border-bottom:2px solid transparent;background:transparent;color:var(--wb-icon-secondary,#667085);padding:7px 2px 9px;font:inherit;font-size:12px;cursor:pointer;transition:color .15s,border-color .15s}.wbs-usage-tabs button.active{border-bottom-color:var(--wb-color-text-primary,#1f1f1f);color:var(--wb-color-text-primary,#1f1f1f);font-weight:700}.wbs-credit-stats-note{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:10px 0;color:var(--wb-icon-secondary,#667085);font-size:11px;line-height:1.5}.wbs-credit-sync{height:26px;padding:0 9px;border:1px solid var(--wb-border-default,#e2e4e8);border-radius:7px;background:var(--wb-bg-tertiary,#f5f6f8);color:var(--wb-color-text-primary,#1f1f1f);font:inherit;font-size:11px;cursor:pointer}.wbs-credit-sync:disabled{opacity:.6;cursor:wait}.wbs-credit-stats-body{min-height:240px}',
     '.wbs-usage-period{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:16px 0 12px;color:var(--wb-color-text-secondary,#667085);font-size:11px}.wbs-usage-segment{display:inline-flex;align-items:center;gap:2px;max-width:100%;padding:3px;border:1px solid var(--wb-border-subtle,#eee);border-radius:9px;background:var(--wb-bg-tertiary,#f5f6f8)}.wbs-usage-segment button{min-width:55px;height:27px;padding:0 9px;border:0;border-radius:6px;background:transparent;color:var(--wb-color-text-secondary,#667085);font:inherit;font-size:11px;cursor:pointer;white-space:nowrap}.wbs-usage-segment button.active{background:var(--wb-bg-popover,#fff);color:var(--wb-color-text-primary,#1f1f1f);font-weight:600;box-shadow:0 1px 4px rgba(0,0,0,.1)}.wbs-usage-segment button:disabled{opacity:.55;cursor:wait}.wbs-usage-segment button:focus-visible,.wbs-trend-legend button:focus-visible{outline:2px solid var(--wbs-primary);outline-offset:2px}',
-    '.wbs-trend-panel,.wbs-usage-pie-section{--wbs-chart-base:var(--wbs-credit-theme-color,var(--wbs-primary));--wbs-trend-series-1:var(--wbs-chart-base);--wbs-trend-series-2:color-mix(in srgb,var(--wbs-chart-base) 84%,var(--wb-color-text-primary));--wbs-trend-series-3:color-mix(in srgb,var(--wbs-chart-base) 68%,var(--wb-bg-primary));--wbs-trend-series-4:color-mix(in srgb,var(--wbs-chart-base) 52%,var(--wb-bg-primary));--wbs-trend-series-5:color-mix(in srgb,var(--wbs-chart-base) 36%,var(--wb-bg-primary));--wbs-trend-series-6:color-mix(in srgb,var(--wbs-chart-base) 72%,transparent);--wbs-trend-series-7:color-mix(in srgb,var(--wbs-chart-base) 58%,var(--wb-color-text-primary));--wbs-trend-series-8:color-mix(in srgb,var(--wbs-chart-base) 44%,var(--wb-color-text-primary));--wbs-trend-series-9:color-mix(in srgb,var(--wbs-chart-base) 30%,var(--wb-color-text-primary));--wbs-trend-series-10:color-mix(in srgb,var(--wbs-chart-base) 70%,var(--wb-bg-secondary));--wbs-trend-series-11:color-mix(in srgb,var(--wbs-chart-base) 52%,transparent);--wbs-trend-series-12:color-mix(in srgb,var(--wbs-chart-base) 38%,transparent);}',
+    // 分组统计（按账号/按模型）：总览沿用主题色，其余序列改用互不相同的色相，
+    // 每个色相在浅色/深色主题各有一份定义（--wbs-series-*），避免同色明度梯变难以区分。
+    '.wbs-trend-panel,.wbs-usage-pie-section{--wbs-chart-base:var(--wbs-credit-theme-color,var(--wbs-primary));--wbs-trend-series-1:var(--wbs-chart-base);--wbs-trend-series-2:var(--wbs-series-2);--wbs-trend-series-3:var(--wbs-series-3);--wbs-trend-series-4:var(--wbs-series-4);--wbs-trend-series-5:var(--wbs-series-5);--wbs-trend-series-6:var(--wbs-series-6);--wbs-trend-series-7:var(--wbs-series-7);--wbs-trend-series-8:var(--wbs-series-8);--wbs-trend-series-9:var(--wbs-series-9);--wbs-trend-series-10:var(--wbs-series-10);--wbs-trend-series-11:var(--wbs-series-11);--wbs-trend-series-12:var(--wbs-series-12)}',
     '.wbs-trend-controls{display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap;margin-bottom:9px}.wbs-trend-modes{flex-shrink:0}.wbs-trend-modes button{min-width:48px}.wbs-trend-legend{display:flex;align-items:center;gap:6px;flex:1;flex-wrap:wrap;min-width:140px;max-height:74px;overflow-y:auto;scrollbar-width:none}.wbs-trend-legend::-webkit-scrollbar{display:none}.wbs-trend-legend button{display:inline-flex;align-items:center;gap:6px;max-width:165px;height:27px;padding:0 8px;border:1px solid var(--wb-border-subtle,#eee);border-radius:6px;background:var(--wb-bg-popover,#fff);color:var(--wb-color-text-secondary,#667085);font:inherit;font-size:11px;cursor:pointer;opacity:.55}.wbs-trend-legend button.active{opacity:1;color:var(--wb-color-text-primary,#1f1f1f)}.wbs-trend-legend button i{flex:none;width:8px;height:8px;border-radius:50%;background:var(--wbs-series-color);color:var(--wbs-series-color)}.wbs-trend-legend button span{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.wbs-trend-no-series{font-size:11px;color:var(--wb-color-text-secondary,#667085)}',
     '.wbs-token-stats-actions{display:flex;justify-content:flex-end;gap:7px;margin:2px 0 12px}.wbs-token-stats-actions button{height:30px;padding:0 14px;border-radius:7px;font:inherit;font-size:11px;cursor:pointer}.wbs-token-stats-search{border:1px solid var(--wb-button-primary-bg,#1f1f1f);background:var(--wb-button-primary-bg,#1f1f1f);color:var(--wb-button-primary-fg,#fff)}.wbs-token-stats-reset{border:1px solid var(--wb-border-default,#e2e4e8);background:var(--wb-bg-tertiary,#f5f6f8);color:var(--wb-color-text-secondary,#667085)}.wbs-token-stats-actions button:disabled{opacity:.55;cursor:wait}',
     '.wbs-token-stats-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:10px}',

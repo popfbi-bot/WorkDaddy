@@ -65,6 +65,13 @@ test('macOS launcher keeps official WorkBuddy targets out of enterprise mode', (
   assert.match(buildSource, /PLIST_STALE/);
 });
 
+test('macOS package patches profile context into the launchd nohup fallback', () => {
+  const patch = buildSource.slice(buildSource.indexOf('macOS launcher 缺少 profile 环境变量兜底修复'));
+  assert.match(patch, /WBSWITCH_DATA_DIR="\$DATA_DIR"/);
+  assert.match(patch, /WBSWITCH_PORT="\$UI_PORT"/);
+  assert.match(patch, /WBSWITCH_PROFILE="\$PROFILE"/);
+});
+
 test('macOS packages include every SVG loaded by the injected UI builder', () => {
   const daemon = fs.readFileSync(path.join(repoRoot, 'scripts/daemon.js'), 'utf8');
   const builder = daemon.slice(daemon.indexOf('function buildInjectScript()'), daemon.indexOf('function buildInjectScript()') + 5000);

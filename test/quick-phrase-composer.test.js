@@ -36,7 +36,7 @@ test('AI busy detection ignores WorkDaddy controls but keeps official stop contr
   assert.equal(evaluateBusy([officialStop]), true);
 });
 
-function harness(hasContent, failSelect = false, postClickHasContent = false) {
+function harness(hasContent, failSelect = false, postClickHasContent = false, submitError = '') {
   const calls = [];
   let evaluations = 0;
   let submitted = false;
@@ -58,7 +58,11 @@ function harness(hasContent, failSelect = false, postClickHasContent = false) {
       if (failSelect && params.commands?.includes('selectAll')) throw new Error('selection failed');
       return {};
     },
-    cdpMouseClick: async () => { submitted = true; calls.push({ method: 'submit' }); },
+    cdpMouseClick: async () => {
+      submitted = true;
+      calls.push({ method: 'submit' });
+      if (submitError) throw new Error(submitError);
+    },
   };
   vm.runInNewContext(source.slice(start, end), context);
   return { calls, send: (text) => context.sendStashToComposer({ content: { text, items: [] } }) };
@@ -85,6 +89,12 @@ test('quick phrase replaces a draft using a renderer edit command without macOS 
   }
   assert.equal(inputs[insertion].params.text, 'replacement');
   assert.equal(inputs.at(-1).method, 'submit');
+});
+
+test('quick phrase treats a collected promise after the send click as an already submitted message', async () => {
+  const { calls, send } = harness(false, false, false, 'Promise was collected');
+  assert.equal((await send('replacement')).sent, true);
+  assert.equal(calls.filter(({ method }) => method === 'submit').length, 1);
 });
 
 test('empty composer skips clearing and multiline phrases retain Shift+Enter', async () => {

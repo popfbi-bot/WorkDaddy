@@ -283,6 +283,14 @@ test('automation session sends only after entering the WorkBuddy new-task surfac
   assert.match(inject, /\.wbs-auto-icon\.is-running[^}]*opacity:1/);
 });
 
+test('session.create workspace binding fields are validated as a V2 absolute-path contract', () => {
+  const base = { id: 'workspace-binding', name: 'workspace-binding', steps: [{ op: 'session.create', message: 'hello' }] };
+  assert.throws(() => validateTask({ ...base, steps: [{ op: 'session.create', message: 'hello', cwd: '/repo/app' }] }), /自动化协议 V2/);
+  assert.throws(() => validateTask({ ...base, schemaVersion: 2, steps: [{ op: 'session.create', message: 'hello', cwd: 'relative/path' }] }), /绝对路径/);
+  assert.throws(() => validateTask({ ...base, schemaVersion: 2, steps: [{ op: 'session.create', message: 'hello', workspace: '  ' }] }), /非空字符串/);
+  assert.doesNotThrow(() => validateTask({ ...base, schemaVersion: 2, steps: [{ op: 'session.create', message: 'hello', cwd: '/repo/app', workspace: 'app' }] }));
+});
+
 test('automation DOM locators traverse open shadow roots and task rows expose logs', () => {
   const inject = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'inject.js'), 'utf8');
   const daemon = fs.readFileSync(path.join(__dirname, '..', 'scripts', 'daemon.js'), 'utf8');

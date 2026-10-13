@@ -3,8 +3,10 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('node:fs');
+const os = require('node:os');
 const path = require('node:path');
 const vm = require('node:vm');
+const automation = require('../scripts/automation');
 
 function runPopupTask(appearAt, failedConfirmations = 0) {
   let now = 0;
@@ -73,6 +75,63 @@ test('activity fallbacks do not depend on localized text and broad popup selecto
   assert.ok(values.every(value => !/关闭活动通知|activity notification/i.test(value)));
   assert.ok(values.every(value => value !== '.wb-slot--closable-close'));
   assert.ok(values.every(value => !value.startsWith('//*[')));
+});
+
+test('popup cleanup notifications keep one toast per popup across navigation reruns', async () => {
+  const task = JSON.parse(fs.readFileSync(path.join(__dirname, '../scripts/builtin/automations/close-buddy-popups.json'), 'utf8'));
+  const notifications = [];
+  const walk = value => {
+    if (Array.isArray(value)) return value.forEach(walk);
+    if (!value || typeof value !== 'object') return;
+    if (value.op === 'notify.toast') notifications.push(value);
+    Object.values(value).forEach(walk);
+  };
+  walk(task.steps);
+  assert.deepEqual(notifications.map(step => step.id), ['fuel-close', 'playbooks-close', 'growth-close', 'activity-close']);
+  const source = fs.readFileSync(path.join(__dirname, '../scripts/daemon.js'), 'utf8');
+  assert.match(source, /function automationNotificationNamespace\(task, runId\)/);
+  assert.match(source, /taskIsPassiveCleanup\(task\)\s*\?\s*'automation-task:'\s*\+\s*task\.id/);
+  const helperStart = source.indexOf('function automationNotificationNamespace(');
+  const helperEnd = source.indexOf('\nfunction startAutomationRun(', helperStart);
+  const helperContext = { taskIsPassiveCleanup: value => value.id === task.id };
+  vm.createContext(helperContext);
+  vm.runInContext(source.slice(helperStart, helperEnd), helperContext);
+  assert.equal(helperContext.automationNotificationNamespace(task, 'run-a'), 'automation-task:buddy-fuel-station-close-on-account-switch');
+  assert.equal(helperContext.automationNotificationNamespace({ id: 'custom' }, 'run-b'), 'automation:run-b');
+  const { createAutomationNotifier } = require('../scripts/toast-options');
+  const calls = [];
+  const send = async detail => { calls.push(detail); };
+  await createAutomationNotifier(send, 'automation-task:popup').show('success', '已关闭', { id: 'growth-close' });
+  await createAutomationNotifier(send, 'automation-task:popup').show('success', '已关闭', { id: 'growth-close' });
+  assert.equal(calls[0].id, calls[1].id);
+});
+
+test('popup builtin revision upgrades existing managed installs with notification ids', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wd-popup-builtin-'));
+  const presetPath = path.join(__dirname, '../scripts/builtin/automations/close-buddy-popups.json');
+  const oldPath = path.join(dir, 'old-popup.json');
+  try {
+    const current = JSON.parse(fs.readFileSync(presetPath, 'utf8'));
+    const old = JSON.parse(JSON.stringify(current));
+    old.revision = 2;
+    old.upgradeFromContentHashes = ['7409d4d92618b59326e56629f4d9ba804ae30a4e36d7d5ed156042b9a3a744bd'];
+    const stripIds = value => {
+      if (Array.isArray(value)) return value.forEach(stripIds);
+      if (!value || typeof value !== 'object') return;
+      if (value.op === 'notify.toast') delete value.id;
+      Object.values(value).forEach(stripIds);
+    };
+    stripIds(old.steps);
+    fs.writeFileSync(oldPath, JSON.stringify(old));
+    automation.installBuiltinTask(dir, oldPath);
+    const result = automation.installBuiltinTask(dir, presetPath);
+    const upgraded = automation.readAutomations(dir)[0];
+    assert.equal(result.status, 'upgraded');
+    assert.equal(upgraded.revision, 3);
+    assert.deepEqual(upgraded.steps[0].steps.map(step => step.steps && step.steps.find(child => child.op === 'notify.toast')?.id).filter(Boolean), ['fuel-close', 'playbooks-close', 'growth-close', 'activity-close']);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
 });
 
 test('absent fuel popup does not delay other popups, including one rendered later', async () => {
@@ -190,6 +249,7 @@ test('a running cleanup stops before the next navigation begins its own cleanup'
     listAccounts: () => [], currentAccount: () => null, automationSwitchAccount: noop,
     automationAccountStatus: noop, automationHttpRequest: noop, automationDomAction: noop,
     automationNotifyToast: noop, createAutomationNotifier: require('../scripts/toast-options').createAutomationNotifier,
+    automationNotificationNamespace: () => 'automation:test',
     executeTask: async (_, deps) => { executions.push(deps); if (executions.length === 1) await active; return {}; },
   };
   const dispatchStart = source.indexOf('function dispatchAutomationEvent(');

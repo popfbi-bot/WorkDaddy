@@ -19,8 +19,8 @@ function normalizeToastOptions(input = {}, dismiss = false) {
 }
 module.exports = { normalizeToastOptions };
 
-// Each run owns a namespace: identical task ids cannot update/dismiss another
-// run's notifications or ordinary WorkDaddy UI notifications.
+// Each notifier uses a namespace: ordinary runs stay isolated, while callers
+// that intentionally share a task namespace can update the same status toast.
 function createAutomationNotifier(send, namespace) {
   const active = new Map();
   let nextId = 0;

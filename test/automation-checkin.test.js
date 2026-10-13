@@ -125,6 +125,13 @@ test('model rate limit route and account snapshots expose only structured 6004 r
   assert.match(accounts, /modelRateLimits/);
 });
 
+test('model rate limit reports are deduplicated across accounts by model and reset time', () => {
+  const route = source.slice(source.indexOf("p === '/api/model-rate-limit'"), source.indexOf("if (req.method === 'GET' && p === '/api/accounts')"));
+  assert.match(route, /hasModelRateLimitElsewhere\(\{ uid, modelId, resetAt, now \}\)/);
+  assert.match(route, /skipped: 'duplicate-across-accounts'/);
+  assert.match(route, /resetAt !== null/);
+});
+
 test('failed or stale cache records never suppress today\'s check-in request', async () => {
   for (const cached of [
     {date:'2026-09-08',ok:false,verified:false,code:0,message:'HTTP 500'},

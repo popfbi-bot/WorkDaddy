@@ -597,3 +597,31 @@ test('frosted takeover completes even when background renderer timers and animat
   assert.equal(applies, 2, 'native dark precedes glass');
   assert.deepEqual(delays, [120], 'the daemon owns the bounded settle delay');
 });
+
+for (const uid of ['current', null]) test('stale URL account never owns a new native theme snapshot: ' + uid, async () => {
+  const { context } = renderer();
+  context.URL = URL;
+  context.location = { href: 'file:///app/index.html?accountSnapshot=' + encodeURIComponent(encodeURIComponent(JSON.stringify({ uid: 'old' }))) };
+  context.localStorage.setItem('workbuddy.appearance.lastApplied', '{"resourceKey":"light","appearance":"light"}');
+  vm.runInNewContext(await themeExpression('dark', true, uid), context);
+  assert.equal(context.localStorage.getItem('workdaddy.theme.native-snapshot::old'), null);
+  if (uid) assert.ok(context.localStorage.getItem('workdaddy.theme.native-snapshot::current'));
+});
+
+test('native theme restoration uses the current account even when the URL is stale', async () => {
+  const { context } = renderer();
+  context.URL = URL;
+  context.location = { href: 'file:///app/index.html?accountSnapshot=' + encodeURIComponent(encodeURIComponent(JSON.stringify({ uid: 'old' }))) };
+  for (const [uid, resource] of [['current', 'theme-current'], ['old', 'theme-old']]) {
+    context.localStorage.setItem('workdaddy.theme.native-snapshot::' + uid, JSON.stringify({ keys: [
+      ['workbuddy.appearance.lastApplied', JSON.stringify({ resourceKey: resource, appearance: 'light' })],
+    ] }));
+  }
+  const daemon = { cdp: { connected: true }, currentAccount: () => ({ uid: 'current' }),
+    cdpSend: async (_, params) => ({ result: { value: await vm.runInNewContext(params.expression, context) } }),
+  };
+  const start = source.indexOf('async function restoreNativeAppearanceByCdp()');
+  vm.runInNewContext(source.slice(start, source.indexOf('/** 恢复已保存的主题', start)), daemon);
+  await daemon.restoreNativeAppearanceByCdp();
+  assert.equal(JSON.parse(context.localStorage.getItem('workbuddy.appearance.lastApplied')).resourceKey, 'theme-current');
+});

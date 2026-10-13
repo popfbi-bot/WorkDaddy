@@ -11,7 +11,7 @@ const sessionSync = require('../scripts/session-sync.js');
 const { createDirtyIndex } = require('../scripts/session-dirty.js');
 const source = fs.readFileSync(path.join(__dirname, '../scripts/daemon.js'), 'utf8');
 const base = [{ type: 'message', role: 'user', content: [{ text: 'question' }] }, { type: 'message', role: 'assistant', content: [{ text: 'answer' }] }];
-function harness(t) {
+function harness(t, withPlanner = false) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'wd-pair-daemon-'));
   t.after(() => fs.rmSync(root, { recursive: true, force: true }));
   const rows = new Map();
@@ -33,7 +33,11 @@ function harness(t) {
     accountSwitchInProgress: false, SESSION_COPY_COLUMNS: ['id', 'user_id'], sessionCopyLocks: new Map(), yieldAutoCopyToRenderer: async () => {}, assertSessionSyncIdle: async () => {},
     getSessionSyncCache: () => syncCacheMap, scheduleSessionSyncCacheSave: () => {},
     getSessionDirtyIndex: () => dirtyIndex,
+    setTimeout, clearTimeout,
     log: () => {}, sqliteQuery: async (_, params) => {
+      if (withPlanner && params.length === 1 && /FROM sessions WHERE deleted_at IS NULL.* user_id = \?/.test(_)) {
+        return [...rows.values()].filter(row => row.user_id === params[0]).map(row => ({ ...row }));
+      }
       if (params.length >= 4) {
         return [...rows.values()].filter((candidate) => String(candidate.user_id) === String(params[0]) &&
           String(candidate.cwd || '') === String(params[1] || '') &&
@@ -42,14 +46,14 @@ function harness(t) {
       }
       const row = rows.get(params[0]); return row && (!params[1] || params[1] === row.user_id) ? [{ ...row }] : [];
     },
-    sqliteRun: async (_, params) => { const row = rows.get(params[5]); assert.ok(row); Object.assign(row, { title: params[0], updated_at: params[3] }); },
+    sqliteRun: async (_, params) => { const row = rows.get(params[5]); assert.ok(row); Object.assign(row, { title: params[0], custom_title: params[1], status: params[2], updated_at: params[3], last_activity_at: params[4] }); },
     insertCopiedSession: async (src, uid, id) => {
       const row = { ...src, user_id: uid, id, updated_at: Date.now(), last_activity_at: Number(src.last_activity_at || src.updated_at || Date.now()) };
       rows.set(id, row);
       return row;
     },
   };
-  vm.runInNewContext(source.slice(source.indexOf('function sessionCopyContentRevision('), source.indexOf('async function buildAutoCopyPlan(')), ctx);
+  vm.runInNewContext(source.slice(source.indexOf('function sessionCopyContentRevision('), source.indexOf(withPlanner ? 'const autoCopyJobs' : 'async function buildAutoCopyPlan(')), ctx);
   return { root, rows, file, write, ctx, lineage, copy: () => ctx.copySessionRecord(rows.get('a'), 'two', { auto: true, lineageId: lineage }) };
 }
 test('account two continuation updates account one and never account three', async t => {
@@ -914,4 +918,88 @@ test('native automatic first copy registers destination ownership before selecti
   assert.equal(result.status,'copied');
   assert.ok(files.collect(result.targetId).every(f=>f.source.includes(path.join('two','CodeBuddyIDE','two'))));
   assert.equal((await h.copy()).status,'skipped');
+});
+
+
+async function multiAccountHarness(t) {
+  const h = harness(t, true);
+  lib.setAutoCopyAllSessions(h.root, true);
+  h.rows.set('d', { ...h.rows.get('a'), id: 'd', user_id: 'four' });
+  lib.addAutoCopySessionMember(h.root, h.lineage, 'four', 'd');
+  h.write('d', base);
+  for (const row of h.rows.values()) {
+    Object.assign(row, { status: 'completed', custom_title: '', last_activity_at: 1 });
+    h.ctx.markSessionDirtyBaseline(row.user_id);
+  }
+  for (const uid of ['two', 'three', 'four']) {
+    await h.ctx.copySessionRecord(h.rows.get('a'), uid, { auto: true, lineageId: h.lineage });
+  }
+  await h.ctx.copySessionRecord(h.rows.get('b'), 'one', { auto: true, lineageId: h.lineage });
+  // All four accounts already have stable mappings before the old session changes.
+  h.write('a', [...base, nextMessage('continued old session')]);
+  Object.assign(h.rows.get('a'), { updated_at: 2, last_activity_at: 2 });
+  h.ctx.markSessionDirty('one', 'a', 'sessionUpdated');
+  h.switchTo = async (from, to) => {
+    const plan = await h.ctx.buildAutoCopyPlan(from, to);
+    h.lastResults = [];
+    for (const row of plan) h.lastResults.push(await h.ctx.copySessionRecord(row, to, { auto: true, lineageId: row.lineageId }));
+    return plan;
+  };
+  return h;
+}
+
+test('one old-session edit reaches all four initialized accounts over successive switches', async t => {
+  const h = await multiAccountHarness(t);
+  for (const [from, to, id] of [['one', 'two', 'b'], ['two', 'three', 'c'], ['three', 'four', 'd']]) {
+    assert.equal((await h.switchTo(from, to)).length, 1, `${from} -> ${to} must retain the update signal`);
+    assert.deepEqual(fs.readFileSync(h.file(id)), fs.readFileSync(h.file('a')));
+  }
+  const circuit = [['four', 'one'], ['one', 'two'], ['two', 'three'], ['three', 'four']];
+  for (const [from, to] of circuit) {
+    await h.switchTo(from, to);
+    assert.ok(h.lastResults.every(result => result.status === 'skipped' && result.copiedBytes === 0),
+      'returning to the edited source may refresh its mapping but must not rewrite files');
+  }
+  for (const [from, to] of circuit) {
+    assert.equal((await h.switchTo(from, to)).length, 0, 'a completed circuit does not schedule duplicate copies');
+  }
+});
+
+test('returning through an already synchronized account does not lose remaining targets', async t => {
+  const h = await multiAccountHarness(t);
+  assert.equal((await h.switchTo('one', 'two')).length, 1);
+  await h.switchTo('two', 'one');
+  assert.ok(h.lastResults.every(result => result.status === 'skipped' && result.copiedBytes === 0));
+  assert.equal((await h.switchTo('one', 'three')).length, 1);
+  assert.deepEqual(fs.readFileSync(h.file('c')), fs.readFileSync(h.file('a')));
+});
+
+
+test('existing and later lifecycle markers cannot consume an updated member before fanout', async t => {
+  const h = await multiAccountHarness(t);
+  h.ctx.markSessionDirty('two', 'b', 'sessionUpdated');
+  await h.switchTo('one', 'two');
+  await h.switchTo('two', 'one');
+  h.ctx.markSessionDirty('two', 'b', 'sessionUpdated');
+  assert.equal((await h.switchTo('two', 'one')).length, 0);
+  assert.equal((await h.switchTo('two', 'three')).length, 1);
+  assert.deepEqual(fs.readFileSync(h.file('c')), fs.readFileSync(h.file('a')));
+});
+
+
+test('copy completion preserves timestamps of concurrent source and target dirty events', async t => {
+  const h = await multiAccountHarness(t);
+  const at = h.ctx.getSessionDirtyIndex().get('one', 'a').at + 100;
+  let yields = 0;
+  h.ctx.yieldAutoCopyToRenderer = async () => {
+    if (++yields === 2) {
+      h.ctx.markSessionDirty('one', 'a', 'sessionUpdated', at);
+      h.ctx.markSessionDirty('two', 'b', 'sessionUpdated', at + 1);
+    }
+  };
+  await h.switchTo('one', 'two');
+  assert.ok(yields >= 2);
+  assert.equal(h.ctx.getSessionDirtyIndex().get('one', 'a').at, at);
+  assert.equal(h.ctx.getSessionDirtyIndex().get('two', 'b').at, at + 1);
+  assert.equal((await h.switchTo('two', 'three')).length, 1);
 });

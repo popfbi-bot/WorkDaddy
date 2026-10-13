@@ -82,11 +82,43 @@ test('conversation activation exposes the official session lookup and jump event
   }]);
 });
 
-test('conversation activation prefers the official React navigation handler', async () => {
+test('conversation activation prefers the WorkBuddy 5.7 conversation-list handler', async () => {
+  const calls = [];
+  const navigate = async function loadConversationFromList(id, cwd = '', skipLocalCheck = false, preserveListView = false, options = {}) {
+    // Markers mirror WorkBuddy >= 5.7. Its loader dedupes on loadSession, reads
+    // options.conversationEngineRouteTarget and honours preserveListView.
+    if (preserveListView) calls.push('preserve');
+    if (options.conversationEngineRouteTarget === 'localAssistant') return;
+    console.debug('[ConversationList] loadSession deduped:', id);
+    calls.push([id, cwd, skipLocalCheck, preserveListView, options]);
+  };
+  const adapter = {
+    enqueueConversationMessageQueueItem() {},
+    pauseConversationMessageQueue() {},
+    emit() { throw new Error('legacy activation must not be used'); },
+  };
+  const root = visibleElement();
+  root.__reactFiber$test = {
+    memoizedProps: {},
+    memoizedState: { memoizedState: { current: navigate }, next: null },
+    return: null,
+  };
+  const documentLike = {
+    querySelector(selector) { return selector === '.conversation-list' ? root : null; },
+  };
+  const activation = compat.findConversationActivationApi(documentLike);
+  assert.ok(activation);
+  assert.equal(activation.authoritative, true);
+  assert.equal(activation.activate('official-session'), true);
+  await new Promise((resolve) => setImmediate(resolve));
+  assert.deepEqual(calls, [['official-session', '', false, false, {}]]);
+});
+
+test('conversation activation still matches the pre-5.7 navigation handler', async () => {
   const calls = [];
   const navigate = async function handleConversationClick(id, cwd, skipLocalCheck, preserveListView, options) {
-    // The markers mirror WorkBuddy's current handler without depending on its
-    // minified component names.
+    // Markers mirror WorkBuddy <= 5.6, which used these private symbols. Both
+    // were removed in 5.7, so they must stay supported for older clients.
     function dismissHoverPeek() {}
     function syncTaskRouteFromClick() {}
     dismissHoverPeek();
@@ -105,13 +137,59 @@ test('conversation activation prefers the official React navigation handler', as
     return: null,
   };
   const documentLike = {
-    querySelector(selector) { return selector === '#root > div' ? root : null; },
+    querySelector(selector) { return selector === '.conversation-list' ? root : null; },
   };
   const activation = compat.findConversationActivationApi(documentLike);
   assert.ok(activation);
-  assert.equal(activation.activate('official-session'), true);
+  assert.equal(activation.authoritative, true);
+  assert.equal(activation.activate('legacy-session'), true);
   await new Promise((resolve) => setImmediate(resolve));
-  assert.deepEqual(calls, [['official-session', '', false, false, {}]]);
+  assert.deepEqual(calls, [['legacy-session', '', false, false, {}]]);
+});
+
+test('conversation activation ignores the non-navigating setCurrentConversation SDK method', () => {
+  // setCurrentConversation only reports the active conversation to the main
+  // process. Treating it as an authoritative route transition produced
+  // "official-dispatched" without a page change, then retried until timeout.
+  const calls = [];
+  const previousWindow = global.window;
+  global.window = {
+    wb: { conversations: { setCurrentConversation(id) { calls.push(id); } } },
+  };
+  try {
+    const documentLike = { querySelector() { return null; } };
+    assert.equal(compat.findConversationActivationApi(documentLike), null);
+    assert.deepEqual(calls, []);
+  } finally {
+    if (previousWindow === undefined) delete global.window;
+    else global.window = previousWindow;
+  }
+});
+
+test('conversation activation uses the session navigation SDK when it is exposed', async () => {
+  const calls = [];
+  const previousWindow = global.window;
+  global.window = {
+    wb: {
+      conversations: {
+        navigateToSession(id, options) { calls.push([this && typeof this.navigateToSession, id, options]); return Promise.resolve(); },
+      },
+    },
+  };
+  try {
+    const documentLike = { querySelector() { return null; } };
+    const activation = compat.findConversationActivationApi(documentLike);
+    assert.ok(activation);
+    assert.equal(activation.authoritative, true);
+    assert.equal(activation.activate('sdk-session'), true);
+    await new Promise((resolve) => setImmediate(resolve));
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0][1], 'sdk-session');
+    assert.deepEqual(calls[0][2], { ensureLoaded: true });
+  } finally {
+    if (previousWindow === undefined) delete global.window;
+    else global.window = previousWindow;
+  }
 });
 
 test('selected conversation lookup is capability based rather than profile based', () => {
@@ -177,6 +255,19 @@ test('Windows encrypted-field key lookup honors the configured WorkBuddy target 
     else process.env.WBSWITCH_DATA_DIR = previousDataDir;
     fs.rmSync(root, { recursive: true, force: true });
   }
+});
+
+test('Windows encrypted-field lookup keeps WorkBuddy key providers available for CodeBuddy imports', () => {
+  const candidates = lib.wdCompatWindowsExeCandidates({
+    localAppData: 'C:\\Users\\tester\\AppData\\Local',
+    profileId: 'codebuddy-cn',
+    configured: 'C:\\Users\\tester\\AppData\\Local\\Programs\\CodeBuddy CN\\CodeBuddy CN.exe',
+  });
+  assert.deepEqual(candidates.slice(0, 2), [
+    'C:\\Users\\tester\\AppData\\Local\\Programs\\WorkBuddy\\WorkBuddy.exe',
+    'C:\\Users\\tester\\AppData\\Local\\Programs\\WorkBuddyAI\\WorkBuddyAI.exe',
+  ]);
+  assert.equal(candidates.includes('C:\\Users\\tester\\AppData\\Local\\Programs\\CodeBuddy CN\\CodeBuddy CN.exe'), false);
 });
 
 test('account backup keeps both legacy plaintext and encrypted source bytes unchanged', () => {

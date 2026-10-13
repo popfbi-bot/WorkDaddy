@@ -161,7 +161,7 @@ test('account switching refreshes WorkBuddy after replacing auth without restart
   const route = script.slice(routeStart, routeStart + 5200);
   const copy = route.indexOf('await switchAccountForProfile(uid)');
   assert.notEqual(copy, -1);
-  assert.match(route, /await reloadWorkBuddyPage\(\{ waitForInjection: false \}\)/);
+  assert.match(route, /await reloadWorkBuddyPage\(\{ waitForInjection: false, account: acct \}\)/);
   assert.doesNotMatch(route, /await quitWorkBuddy\(\)/);
   assert.doesNotMatch(route, /await relaunchWorkBuddy\(\)/);
   assert.match(lib, /function retireLogoutMarker/);
@@ -187,8 +187,16 @@ test('account switching carries the active conversation and opens its copied tar
   assert.match(inject, /function acSwitchConversationId()/);
   assert.match(inject, /openCopiedSession/);
   assert.match(compat, /function findConversationActivationApi\(doc, options\)/);
-  assert.match(compat, /setCurrentConversation/);
-  assert.match(compat, /sdkNavigateKind/);
+  // Only real navigation sources may drive activation: the conversation-list
+  // React handler (both the WorkBuddy >= 5.7 and the <= 5.6 marker groups) or
+  // the session-navigation SDK. conversations.setCurrentConversation merely
+  // reports the active session to the main process, so it must never be used as
+  // an activation path.
+  assert.doesNotMatch(compat, /conversations\.setCurrentConversation/);
+  assert.match(compat, /CONVERSATION_NAVIGATION_MARKER_GROUPS/);
+  assert.match(compat, /\['preserveListView', 'conversationEngineRouteTarget', 'loadSession'\]/);
+  assert.match(compat, /\['dismissHoverPeek', 'syncTaskRouteFromClick'\]/);
+  assert.match(compat, /conversations\.navigateToSession/);
   assert.match(compat, /adapter\.emit\('jump-to-conversation'/);
   assert.match(inject, /activationApi\.hasSession\(id\)/);
   assert.match(inject, /job\.openSessionId\) setBuildTimeout\(function \(\) \{ openCopiedSession\(job\.openSessionId\); \}, 1000\)/);
@@ -583,6 +591,24 @@ test('release scripts package all four independently branded profiles', () => {
   assert.match(mac, /Contents\/Resources\/scripts\/daemon\.js/);
   assert.match(win, /BUILD_VERSION="\$VERSION"/);
   assert.match(installer, /\$lnkPath\s*=\s*Join-Path\s+\$desktopDir\s+\(\$productName\s+\+\s+'\.lnk'\)/);
+});
+
+test('macOS DMG fallback layouts pin every branded app beside Applications', () => {
+  const mac = read('build-mac-dmg.sh');
+  assert.match(mac, /codebuddy-cn\) DSSTORE_FALLBACK=.*codedaddy-cn\.DS_Store/);
+  assert.match(mac, /codebuddy-intl\) DSSTORE_FALLBACK=.*codedaddy\.DS_Store/);
+  const layouts = [
+    ['workdaddy.DS_Store', 'WorkDaddy.app'],
+    ['workdaddy-ai.DS_Store', 'WorkDaddy AI.app'],
+    ['codedaddy-cn.DS_Store', 'CodeDaddy CN.app'],
+    ['codedaddy.DS_Store', 'CodeDaddy.app'],
+  ];
+  for (const [name, app] of layouts) {
+    const bytes = fs.readFileSync(path.join(repoRoot, 'scripts', 'assets', 'dmg-layout', name));
+    const utf16be = value => Buffer.from(value, 'utf16le').swap16();
+    assert.ok(bytes.includes(utf16be(app)), `${name} must contain its app item`);
+    assert.ok(bytes.includes(utf16be('Applications')), `${name} must contain Applications`);
+  }
 });
 
 test('Windows installer writes through the console API for PowerShell 5.1 compatibility', () => {
@@ -1065,17 +1091,26 @@ test('robot button decorations remain visible alongside the eye states', () => {
   assert.match(script, /\.wbs-fab \.click \.button \.speak~\.speak\{display:none\}/);
 });
 
-test('robot button defaults to the window bottom-right and snaps right after free dragging', () => {
+test('robot button anchors to the conversation area bottom-right and snaps right after free dragging', () => {
   const script = read('inject.js');
-  assert.match(script, /FAB_POSITION_KEY = 'wbs-fab-bottom-v2-' \+ PROFILE_ID/);
-  assert.match(script, /FAB_LEGACY_POSITION_KEY = 'wbs-fab-bottom-' \+ PROFILE_ID/);
+  assert.match(script, /FAB_POSITION_KEY = 'wbs-fab-bottom-v3-' \+ PROFILE_ID/);
+  assert.match(script, /'wbs-fab-bottom-v2-' \+ PROFILE_ID/);
+  assert.match(script, /'wbs-fab-bottom-' \+ PROFILE_ID/);
   assert.match(script, /raw !== null && raw !== '' && isFinite\(value\)/);
-  assert.match(script, /localStorage\.removeItem\(FAB_LEGACY_POSITION_KEY\)/);
+  assert.match(script, /localStorage\.removeItem\(FAB_RETIRED_POSITION_KEYS\[i\]\)/);
+  // The anchor is the conversation area, not the window.
+  assert.match(script, /'\.teams-container\.is-mac \.conversation-shell'/);
+  assert.match(script, /function readFabAnchorNode\(\)/);
+  assert.match(script, /function fabAnchorOffsets\(\)/);
+  assert.match(script, /window\.innerWidth - rect\.right\) \+ FAB_EDGE_GAP/);
+  assert.match(script, /window\.innerHeight - rect\.bottom\) \+ FAB_EDGE_GAP/);
+  assert.match(script, /new ResizeObserver\(function \(\) \{ scheduleFabPos\(\); \}\)/);
+  assert.match(script, /ensureFabAnchorObserver\(\)/);
   assert.match(script, /setPointerCapture\(e\.pointerId\)/);
   assert.match(script, /FAB_DRAG_THRESHOLD = 6/);
   assert.match(script, /fabDrag\.startRight - deltaX/);
   assert.match(script, /fabDrag\.startBottom - deltaY/);
-  assert.match(script, /applyFabPosition\(fab, FAB_EDGE_GAP, bottom\)/);
+  assert.match(script, /applyFabPosition\(fab, fabAnchorOffsets\(\)\.right, bottom\)/);
   assert.match(script, /localStorage\.setItem\(FAB_POSITION_KEY/);
   assert.match(script, /touchAction = 'none'/);
   assert.match(script, /is-snapping/);
@@ -1121,7 +1156,7 @@ test('Windows updater stops at the installer prompt after download', () => {
   assert.doesNotMatch(script, /var WBS_PLATFORM = '__WBS_PLATFORM__'/);
   const injectedWindows = script.replace(/__WBS_PLATFORM__/g, JSON.stringify('win32'));
   assert.match(injectedWindows, /var WBS_PLATFORM = "win32";/);
-  assert.match(script, /function showWindowsInstallerReady\(prog, btn, card, timer\)/);
+  assert.match(script, /function showWindowsInstallerReady\(prog, btn, card, timer(?:, keepDisabled)?\)/);
   assert.match(script, /function openWindowsInstallerAfterDownload\(prog, btn, card, timer, resolve, reject\)/);
   assert.match(script, /appendUpdateLog\(prog, '即将打开安装包…'\)/);
   assert.match(script, /if \(WBS_PLATFORM === 'win32'\) \{[\s\S]*openWindowsInstallerAfterDownload\(prog, btn, card, timer, resolve, reject\);/);
@@ -1382,10 +1417,10 @@ test('automatic session copy filters clean sessions before target queries and sn
   assert.match(daemon, /const dirtyIndex = (?:getSessionDirtyIndex\(\)|typeof getSessionDirtyIndex === 'function'[\s\S]*?getSessionDirtyIndex\(\))[\s\S]*const dirtyRows = selectedRows\.filter\(\(\) => false\);[\s\S]*for \(const row of selectedRows\)[\s\S]*dirtyIndex\.shouldSync\(source, row\.id\)[\s\S]*mappingSourceRevisionMatches/);
   assert.match(daemon, /const SESSION_DIRTY_FILE = (?:path\.join\(DATA_DIR, 'session-dirty\.json'\)|typeof DATA_DIR !== 'undefined'[\s\S]*?session-dirty\.json)/);
   assert.match(daemon, /POST' && p === '\/api\/sessions\/dirty'/);
-  assert.match(daemon, /clearAutoDirty\(\);/);
+  assert.match(daemon, /finishAutoDirty\(targetId, changed\);/);
   assert.match(inject, /function sessionCopyIsNoop\(job\)/);
   assert.match(inject, /if \(sessionCopyIsNoop\(job\)\) \{[\s\S]*closeSessionCopyNotice\(\);/);
-  assert.match(inject, /createSessionDirtyTracker\(function \(payload\)/);
+  assert.match(inject, /createSessionDirtyTracker\(sendSessionDirtyEvents\)/);
   assert.match(inject, /sessionDirtyTracker\.baseline\(records\)/);
 });
 

@@ -10,6 +10,8 @@ const CN_URL = 'file:///Applications/WorkBuddy.app/Contents/Resources/app.asar/r
 const CB_CN_URL = 'file:///Applications/CodeBuddy%20CN.app/Contents/Resources/app/renderer/index.html';
 const CB_INTL_URL = 'file:///Applications/CodeBuddy.app/Contents/Resources/app/renderer/index.html';
 const VSCODE_URL = 'vscode-file://vscode-app/Applications/CodeBuddy.app/Contents/Resources/app/out/vs/code/electron-sandbox/workbench/workbench.html';
+const WIN_CN_URL = 'file:///E:/WorkBuddy/resources/app.asar/renderer/index.html';
+const WIN_AI_URL = 'file:///E:/WorkBuddyAI/resources/app.asar/renderer/index.html';
 
 test('normalizeTargetUrl 把 %20 还原为空格', () => {
   assert.equal(normalizeTargetUrl(AI_URL), AI_URL.replace(/%20/g, ' '));
@@ -29,6 +31,12 @@ test('classifyTarget 依据 app 包路径识别四客户端（含 %20 编码）'
   assert.equal(classifyTarget(CB_INTL_URL, 'CodeBuddy'), 'codebuddy-intl');
   // 标题兜底不得覆盖 app 路径强信号：AI 页面标题即使叫 "WorkBuddy"，仍归属 workbuddy-ai
   assert.equal(classifyTarget(AI_URL, 'WorkBuddy'), 'workbuddy-ai');
+});
+
+test('classifyTarget 识别 Windows 安装目录中的 app.asar 页面', () => {
+  assert.equal(classifyTarget(WIN_CN_URL, 'WorkBuddy'), 'workbuddy-cn');
+  assert.equal(classifyTarget(WIN_AI_URL, 'WorkBuddy AI'), 'workbuddy-ai');
+  assert.equal(classifyTarget('file:///E:/WorkBuddy%20AI/resources/app.asar/renderer/index.html', 'WorkBuddy'), 'workbuddy-ai');
 });
 
 test('classifyTarget 依据登录域名识别国际版/国内版', () => {
